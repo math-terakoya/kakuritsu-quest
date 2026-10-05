@@ -156,7 +156,7 @@ min-height: 44px; touch-action: manipulation;
 .rad { border-top: 1.5px solid currentColor; padding: 0 1px; margin-left: -1px; }
 /* — 確率：場面のカード・図・章えらび — */
 #planeWrap { display: flex; flex-direction: column; }
-#scene { flex: 0 0 auto; margin: 4px 10px 2px; padding: 6px 8px; border: 1px dashed #666; font-size: 13px; line-height: 1.6; color: #eee; }
+#scene { white-space: pre-line; flex: 0 0 auto; margin: 4px 10px 2px; padding: 6px 8px; border: 1px dashed #666; font-size: 13px; line-height: 1.6; color: #eee; }
 #scene.big { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1.9; text-align: center; border: none; }
 #figWrap { flex: 1 1 0; min-height: 0; position: relative; }
 #figWrap.hidden { display: none; }
@@ -384,7 +384,8 @@ const SPACES = { die: DIE, card: CARD };
 function outcomes(sp) { return Array.from({ length: SPACES[sp].n }, (_, i) => i + 1); }
 function region(sp, a, b, x) { const A = SPACES[sp].ev[a][1](x), B = SPACES[sp].ev[b][1](x); return A ? (B ? 1 : 0) : (B ? 2 : 3); }
 function regionsOf(sp, a, b) { const r = [[], [], [], []]; outcomes(sp).forEach(x => r[region(sp, a, b, x)].push(x)); return r; }
-function pairText(sp, a, b) { const S = SPACES[sp]; return S.label + '。A：' + S.ev[a][0] + '、B：' + S.ev[b][0]; }
+// 試行と事象は行を分ける（1行目 試行、2行目から A・B）
+function pairText(sp, a, b) { const S = SPACES[sp]; return S.label + '\nA：' + S.ev[a][0] + '\nB：' + S.ev[b][0]; }
 // 2つの事象を選ぶ（4区画が すべて あるもの。opt.disjoint で 排反かどうかを指定）
 function pickPair(rng, opt = {}) {
   for (let i = 0; i < 500; i++) {
@@ -883,7 +884,7 @@ function renderProblem() {
   const q = p(), st = step();
   $('problemLabel').textContent = q.label + (q.steps.length > 1 ? '　［' + (state.si + 1) + '/' + q.steps.length + (st.part ? '：' + st.part : '') + '］' : '');
   $('problemExpr').innerHTML = mathHTML(st.part === 'かんがえかた' ? 'つかう 考え方は？' : st.part ? st.part + 'を ぬれ' : q.q);
-  $('scene').innerHTML = mathHTML(q.scene);
+  $('scene').innerHTML = mathHTML(q.scene.replace(/。/g, '\n').replace(/\n+$/, ''));   // 文ごとに改行
   const fig = st.fig || null;
   figWrap.classList.toggle('hidden', !fig);
   $('scene').classList.toggle('big', !fig);
