@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:;">
+<title>確率クエスト ～数学Aの章～</title>
+<style>
+  /* ===================== レトロRPG風CSS（領域クエストと共通） ===================== */
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    height: 100%;
+    background: #000;
+    font-family: 'Courier New', 'ＭＳ ゴシック', 'Osaka-Mono', monospace;
+    color: #fff;
+    overflow: hidden;
+  }
+  body { display: flex; align-items: center; justify-content: center; font-feature-settings: "palt"; }
+  #game {
+    width: 100%;
+    max-width: 480px;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 900px;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 2px solid #333;
+    overflow: hidden;
+  }
+
+.rpg-window {
+background: #000;
+border: 3px solid #fff;
+box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+padding: 8px;
+margin: 6px 8px;
+position: relative;
+}
+
+#status {
+display: grid;
+grid-template-columns: 1fr 1fr;
+column-gap: 14px;
+padding: 4px 10px;
+font-size: 12px;
+line-height: 1.7;
+flex-shrink: 0;
+}
+#status .row { display: flex; justify-content: space-between; }
+#status .label { color: #ffff00; letter-spacing: 1px; }
+#status .value { color: #fff; letter-spacing: 1px; }
+#status .wide { grid-column: 1 / -1; }
+#bossDisplay { letter-spacing: 0; }
+.hearts { letter-spacing: 2px; color: #ff4444; }
+.hearts .empty { color: #444; }
+
+#battle {
+display: grid;
+grid-template-columns: 64px 1fr;
+align-items: center;
+gap: 6px;
+padding: 6px 8px;
+flex-shrink: 0;
+}
+#enemy { text-align: center; }
+#monster {
+font-size: 38px;
+line-height: 1.1;
+display: inline-block;
+transition: transform 0.15s, opacity 0.3s;
+text-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
+#monster.boss { animation: bossFloat 2s ease-in-out infinite; text-shadow: 0 0 12px rgba(255,220,0,0.8); }
+@keyframes bossFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+#monster.hit { animation: hit 0.3s; }
+@keyframes hit {
+0%, 100% { transform: translateX(0); filter: brightness(1); }
+20% { transform: translateX(-8px); filter: brightness(3) hue-rotate(180deg); }
+40% { transform: translateX(8px); filter: brightness(3) hue-rotate(180deg); }
+60% { transform: translateX(-5px); filter: brightness(3); }
+80% { transform: translateX(5px); }
+}
+#monster.dying { animation: die 0.8s forwards; }
+@keyframes die {
+0% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.7; transform: scale(1.1); filter: brightness(3); }
+100% { opacity: 0; transform: scale(0.3) rotate(180deg); }
+}
+#monster.miss-dmg { animation: miss 0.4s; }
+@keyframes miss { 0%, 100% { transform: translateX(0); } 50% { transform: scale(1.08); filter: brightness(1.3) sepia(0.3); } }
+#monsterName { font-size: 10px; color: #ffff00; letter-spacing: 1px; white-space: nowrap; }
+#problem { text-align: center; min-width: 0; }
+#problem .label { color: #ffff00; font-size: 11px; letter-spacing: 1px; margin-bottom: 3px; }
+#problem .expr {
+color: #fff;
+font-size: 18px;
+font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif;
+letter-spacing: 0.5px;
+line-height: 1.35;
+}
+#skipTut {
+position: absolute; top: 4px; right: 6px;
+background: #000; color: #aaa; border: 1px solid #666;
+font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer;
+}
+#skipTut.hidden { display: none; }
+
+#planeWrap { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; }
+#plane {
+position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+border: 2px solid #fff; touch-action: manipulation; cursor: pointer;
+}
+
+#message {
+min-height: 48px;
+max-height: 30vh;
+max-height: 30dvh;
+overflow-y: auto;
+font-size: 12px;
+line-height: 1.55;
+letter-spacing: 0;
+white-space: pre-wrap;
+flex-shrink: 0;
+padding: 6px 10px;
+}
+
+/* — ボタン（2列。出す・隠すは問題の種類で切りかえ） — */
+#controls { padding: 2px 8px 8px; flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.key {
+background: #000; border: 2px solid #fff; color: #fff;
+font-family: inherit; font-size: 15px; font-weight: bold;
+padding: 6px 4px; cursor: pointer; text-align: center; line-height: 1.25;
+min-height: 44px; touch-action: manipulation;
+}
+.key.hidden { display: none; }
+.key:active { transform: translateY(1px); }
+.key.on { background: #fff; color: #000; }
+.key.full { grid-column: 1 / -1; }
+.key.submit { background: #004488; color: #ffff00; }
+.key.submit:disabled { background: #222; color: #666; border-color: #666; cursor: default; }
+.key.opt { font-family: 'Times New Roman', 'Hiragino Mincho ProN', serif; font-weight: normal; font-size: 16px; }
+.key.right { background: #005522; color: #fff; border-color: #44ff88; }
+.key.wrong { background: #551111; color: #fff; border-color: #ff4444; }
+.key .eq { display: block; font-size: 10px; font-weight: normal; letter-spacing: 1px; opacity: 0.85; }
+#mineBtn, #ansBtn { font-size: 13px; min-height: 38px; }
+.key.pulse { animation: pulse 0.9s ease-in-out infinite; }
+@keyframes pulse { 50% { background: #ffff00; color: #000; border-color: #ffff00; box-shadow: 0 0 0 3px #ffff00; } }
+
+/* — TeX 風の分数と根号（外から読み込まずに描く） — */
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: 0.78em; line-height: 1.08; margin: 0 2px; }
+.fr > .nu { border-bottom: 1.5px solid currentColor; padding: 0 3px 1px; }
+.fr > .de { padding: 1px 3px 0; }
+.rt { white-space: nowrap; }
+.rad { border-top: 1.5px solid currentColor; padding: 0 1px; margin-left: -1px; }
+/* — 確率：場面のカード・図・章えらび — */
+#planeWrap { display: flex; flex-direction: column; }
+#scene { flex: 0 0 auto; margin: 4px 10px 2px; padding: 6px 8px; border: 1px dashed #666; font-size: 13px; line-height: 1.6; color: #eee; }
+#scene.big { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1.9; text-align: center; border: none; }
+#figWrap { flex: 1 1 0; min-height: 0; position: relative; }
+#figWrap.hidden { display: none; }
+#party .party { font-size: 18px; margin-bottom: 12px; letter-spacing: 2px; }
+#chapterList { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 360px; }
+.chap { background: #000; border: 2px solid #fff; color: #fff; font-family: inherit; font-size: 14px; padding: 8px 10px; text-align: left; cursor: pointer; }
+.chap .unit { display: block; font-size: 11px; color: #aaa; margin-top: 2px; }
+.chap.locked { color: #666; border-color: #444; cursor: default; }
+table.dist { border-collapse: collapse; margin: 0 auto; font-size: 13px; }
+table.dist th, table.dist td { border: 1px solid currentColor; padding: 1px 6px; }
+.key.two { font-size: 14px; }
+sub { font-size: 0.65em; } sub.ln { margin-right: 1px; }
+/* — 4択のグラフの絵 — */
+.key.thumb { padding: 3px; min-height: 0; }
+.key.thumb canvas { display: block; width: 100%; height: auto; }
+/* — チュートリアルの指 — */
+/* 輪の中心が left/top（点の位置）に来て、指と文字はその下 */
+#tapHint { position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, 0); padding-top: 20px; text-align: center; }
+#tapHint.hidden, #btnHint.hidden { display: none; }
+#tapHint .ring {
+position: absolute; left: 50%; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+border: 3px solid #ffff00; border-radius: 50%; animation: ring 1s ease-out infinite;
+}
+@keyframes ring { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+#tapHint .finger { display: block; font-size: 34px; animation: tap 0.8s ease-in-out infinite; }
+@keyframes tap { 50% { transform: translateY(6px); } }
+#tapHint .txt {
+display: inline-block; margin-top: 2px; padding: 1px 6px; background: #000; border: 2px solid #ffff00;
+color: #ffff00; font-size: 12px; font-weight: bold; white-space: nowrap;
+}
+#btnHint {
+position: absolute; z-index: 60; pointer-events: none; font-size: 30px;
+transform: translate(-50%, -100%); animation: tapDown 0.8s ease-in-out infinite;
+}
+@keyframes tapDown { 50% { margin-top: 6px; } }
+
+/* — オーバーレイ — */
+.overlay {
+position: absolute; inset: 0; background: #000;
+display: flex; flex-direction: column; align-items: center; justify-content: center;
+padding: 24px; z-index: 100; text-align: center;
+}
+.overlay.hidden { display: none; }
+.overlay h1 { font-size: 28px; color: #ffff00; letter-spacing: 3px; margin-bottom: 20px; text-shadow: 3px 3px 0 #884400; line-height: 1.4; }
+.overlay p { font-size: 14px; color: #fff; line-height: 2; margin-bottom: 16px; letter-spacing: 1px; }
+.overlay .sub { color: #aaa; font-size: 12px; }
+.overlay .start-btn {
+background: #000; border: 3px solid #fff; box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+color: #ffff00; padding: 14px 28px; font-size: 16px; letter-spacing: 3px; cursor: pointer; margin-top: 20px; font-family: inherit;
+}
+.overlay .start-btn:active { background: #fff; color: #000; }
+.overlay .how-btn {
+background: #000; border: 2px solid #888; color: #ccc;
+padding: 8px 18px; font-size: 13px; letter-spacing: 2px; cursor: pointer; margin-top: 18px; font-family: inherit;
+}
+.overlay .hero { font-size: 64px; margin-bottom: 12px; }
+.overlay .points {
+text-align: left; border: 3px solid #fff; box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+padding: 12px 14px; margin: 4px 0 8px; font-size: 13px; line-height: 2; letter-spacing: 0.5px;
+}
+.overlay .points b { color: #ffff00; }
+
+.dmg-float { position: absolute; font-size: 24px; font-weight: bold; pointer-events: none; animation: dmgFloat 1s forwards; z-index: 10; }
+@keyframes dmgFloat {
+0% { opacity: 1; transform: translateY(0) scale(0.6); }
+30% { transform: translateY(-16px) scale(1.2); }
+100% { opacity: 0; transform: translateY(-44px) scale(1); }
+}
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 50; }
+#flash.on { animation: flash 0.2s; }
+@keyframes flash { 0% { opacity: 0; } 50% { opacity: 0.6; } 100% { opacity: 0; } }
+.level-up {
+position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+font-size: 32px; color: #ffff00; text-shadow: 3px 3px 0 #884400, 0 0 16px #ffff00;
+letter-spacing: 4px; z-index: 20; animation: lvUp 1.8s forwards; pointer-events: none; white-space: nowrap;
+}
+@keyframes lvUp {
+0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+@media (max-height: 640px) {
+#status { line-height: 1.5; }
+#monster { font-size: 32px; }
+.key { min-height: 40px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div class="overlay" id="titleScreen">
+    <div class="hero">🎲</div>
+    <h1>確率<br>クエスト</h1>
+    <p class="sub">～数学Aの章～</p>
+    <p style="margin-top:24px;">5人の なかまを あつめ<br>カクリツノマオウを うちたおせ！</p>
+    <button class="start-btn" id="startBtn">▶ はじめる</button>
+    <button class="how-btn" id="howBtn">？ あそびかた</button>
+  </div>
+
+  <div class="overlay hidden" id="mapScreen">
+    <h1 style="font-size:20px;margin-bottom:10px;">しょうを えらべ</h1>
+    <div id="party"></div>
+    <div id="chapterList"></div>
+  </div>
+
+  <div class="overlay hidden" id="clearScreen">
+    <div class="hero" id="clearHero">🛡️</div>
+    <h1 id="clearTitle">なかまに なった！</h1>
+    <p id="clearText"></p>
+    <button class="start-btn" id="clearBtn">▶ しょうえらびへ</button>
+  </div>
+
+  <div class="overlay hidden" id="tutDoneScreen">
+    <div class="hero">🎯</div>
+    <h1>れんしゅう<br>クリア！</h1>
+    <div class="points">
+      <div>・ベン図や 表は <b>タップして ぬる</b></div>
+      <div>・式は <b>4つから えらぶ</b>（計算は しない）</div>
+      <div>・「〜とき」の 確率は まず <b>分母</b>、つぎに <b>分子</b></div>
+      <div>・5つの 章で なかまを あつめよう</div>
+    </div>
+    <button class="start-btn" id="goBtn">▶ しょうえらびへ</button>
+  </div>
+
+  <div class="overlay hidden" id="gameOverScreen">
+    <div class="hero">💀</div>
+    <h1 style="color:#ff4444;text-shadow:3px 3px 0 #440000;">ぜんめつ…</h1>
+    <p>ゆうしゃは たおれてしまった…</p>
+    <p class="sub">この 章の さいしょから</p>
+    <button class="start-btn" id="retryBtn">▶ やりなおす</button>
+    <button class="how-btn" id="toMapBtn">しょうえらびへ</button>
+  </div>
+
+  <div class="rpg-window" id="status">
+    <div class="row"><span class="label">しょう</span><span class="value" id="levelDisplay">第1章</span></div>
+    <div class="row"><span class="label">ライフ</span><span class="value hearts" id="livesDisplay">♥♥♥</span></div>
+    <div class="row"><span class="label">げきは</span><span class="value" id="progressDisplay">0/3</span></div>
+    <div class="row"><span class="label">てき</span><span class="value" id="enemyHpDisplay">HP 1</span></div>
+    <div class="row wide"><span class="label">ボスまで</span><span class="value" id="bossDisplay">&nbsp;</span></div>
+  </div>
+
+  <div class="rpg-window" id="battle">
+    <button id="skipTut" class="hidden">とばす ▶▶</button>
+    <div id="enemy"><div id="monster">🫧</div><div id="monsterName">カサナリン</div></div>
+    <div id="problem">
+      <div class="label" id="problemLabel">&nbsp;</div>
+      <div class="expr" id="problemExpr">&nbsp;</div>
+    </div>
+  </div>
+
+  <div id="planeWrap">
+    <div id="scene"></div>
+    <div id="figWrap"><canvas id="plane" width="300" height="200"></canvas>
+      <div id="tapHint" class="hidden"><div class="ring"></div><span class="finger">👆</span><span class="txt">ここを タップ</span></div>
+    </div>
+  </div>
+
+  <div class="rpg-window" id="message"><span id="msgText">&nbsp;</span></div>
+
+  <div id="controls">
+    <button class="key opt hidden" data-i="0"></button>
+    <button class="key opt hidden" data-i="1"></button>
+    <button class="key opt hidden" data-i="2"></button>
+    <button class="key opt hidden" data-i="3"></button>
+    <button class="key hidden" id="mineBtn">じぶんの こたえ</button>
+    <button class="key hidden" id="ansBtn">ただしい ず</button>
+    <button class="key submit full" id="decideBtn">けってい</button>
+    <button class="key full hidden" id="nextBtn">▼ つぎへ</button>
+  </div>
+
+  <div id="btnHint" class="hidden">👇</div>
+  <div id="flash"></div>
+</div>
+
+<!-- ========== しくみ（問題づくり・正解の判定）。画面には触らない ========== -->
+<script id="core">
+(function (G) {
+'use strict';
+// ---------- 分数（正確に） ----------
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { [a, b] = [b, a % b]; } return a || 1; }
+function Q(n, d = 1) { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d); return { n: n / g, d: d / g }; }
+const qadd = (a, b) => Q(a.n * b.d + b.n * a.d, a.d * b.d);
+const qmul = (a, b) => Q(a.n * b.n, a.d * b.d);
+const qeq = (a, b) => a.n === b.n && a.d === b.d;
+const qnum = a => a.n / a.d;
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function ri(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
+function pick(rng, a) { return a[Math.floor(rng() * a.length)]; }
+function shuffle(rng, arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const MINUS = '−', PLUS = '＋', TIMES = '×';
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹', SUB = '₀₁₂₃₄₅₆₇₈₉';
+const sup = k => (k === 1 ? '' : String(k).split('').map(c => SUP[+c]).join(''));
+const sub = k => String(k).split('').map(c => SUB[+c]).join('');
+const fr = q => (q.d === 1 ? String(q.n) : q.n + '/' + q.d);
+function comb(n, r) { let v = 1; for (let i = 0; i < r; i++) v = v * (n - i) / (i + 1); return Math.round(v); }
+function qpow(q, k) { let v = Q(1); for (let i = 0; i < k; i++) v = qmul(v, q); return v; }
+
+// ---------- 事象（サイコロ・カード） ----------
+// 中身は「どの結果が入るか」で持つ。ベン図の区画：0 ＝ A だけ、1 ＝ 両方、2 ＝ B だけ、3 ＝ どちらでもない
+const DIE = { n: 6, label: 'サイコロを 1回 なげる', ev: {
+  even: ['偶数の目', x => x % 2 === 0], odd: ['奇数の目', x => x % 2 === 1], m3: ['3の倍数の目', x => x % 3 === 0],
+  ge4: ['4以上の目', x => x >= 4], ge5: ['5以上の目', x => x >= 5], le2: ['2以下の目', x => x <= 2],
+  le3: ['3以下の目', x => x <= 3], prime: ['素数の目', x => [2, 3, 5].includes(x)],
+} };
+const CARD = { n: 10, label: '1〜10 の カードから 1まい ひく', ev: {
+  even: ['偶数', x => x % 2 === 0], odd: ['奇数', x => x % 2 === 1], m3: ['3の倍数', x => x % 3 === 0],
+  m4: ['4の倍数', x => x % 4 === 0], ge6: ['6以上', x => x >= 6], le4: ['4以下', x => x <= 4],
+  prime: ['素数', x => [2, 3, 5, 7].includes(x)], m5: ['5の倍数', x => x % 5 === 0],
+} };
+const SPACES = { die: DIE, card: CARD };
+function outcomes(sp) { return Array.from({ length: SPACES[sp].n }, (_, i) => i + 1); }
+function region(sp, a, b, x) { const A = SPACES[sp].ev[a][1](x), B = SPACES[sp].ev[b][1](x); return A ? (B ? 1 : 0) : (B ? 2 : 3); }
+function regionsOf(sp, a, b) { const r = [[], [], [], []]; outcomes(sp).forEach(x => r[region(sp, a, b, x)].push(x)); return r; }
+function pairText(sp, a, b) { const S = SPACES[sp]; return S.label + '。A：' + S.ev[a][0] + '、B：' + S.ev[b][0]; }
+// 2つの事象を選ぶ（4区画が すべて あるもの。opt.disjoint で 排反かどうかを指定）
+function pickPair(rng, opt = {}) {
+  for (let i = 0; i < 500; i++) {
+    const sp = pick(rng, ['die', 'card']), keys = Object.keys(SPACES[sp].ev);
+    const a = pick(rng, keys), b = pick(rng, keys);
+    if (a === b) continue;
+    const r = regionsOf(sp, a, b);
+    if (opt.disjoint === true) { if (r[1].length || !r[0].length || !r[2].length) continue; }
+    else if (!r.every(x => x.length)) continue;
+    return { sp, a, b };
+  }
+  throw new Error('事象を選べません');
+}
+const OPS = {
+  'A∪B': [0, 1, 2], 'A∩B': [1], 'Ā': [2, 3], 'B̄': [0, 3], 'A∩B̄': [0], 'Ā∩B': [2], 'Ā∩B̄': [3],
+};
+const DUAL = { 'A∪B': 'A∩B', 'A∩B': 'A∪B' };
+
+// ---------- 問題をつくる ----------
+// 1つの問題は「ステップ」の並び。step: { type: 'paint', fig: 'venn'|'table'|'tree', answer: [...] }
+//                                    または { type: 'opt', options: [{ text, correct, types }] }
+// 4択の選択肢：正解と「判断が1つだけ違う」ものから。値（または意味）が同じものは1つだけ残す
+function opts(rng, list, keyOf) {
+  const seen = new Set(), out = [];
+  for (const o of list) { const k = keyOf(o); if (seen.has(k)) continue; seen.add(k); out.push(o); if (out.length === 4) break; }
+  return shuffle(rng, out.map((o, i) => ({ text: o.text, types: o.types || [], correct: i === 0 })));
+}
+const valKey = o => (o.v ? o.v.n + '/' + o.v.d : o.text);
+function yesNo(right, yes, no, wrongType) {
+  return [{ text: yes, correct: right, types: right ? [] : [wrongType] }, { text: no, correct: !right, types: !right ? [] : [wrongType] }];
+}
+
+const GEN = {
+  // 第1章
+  venn(rng, fx) {
+    const pr = fx ? { sp: fx.sp, a: fx.a, b: fx.b } : pickPair(rng), op = fx ? fx.op : pick(rng, Object.keys(OPS));
+    return { prm: Object.assign(pr, { op }), scene: pairText(pr.sp, pr.a, pr.b), q: op + ' を ぬれ', label: '▼ ベン図を ぬれ',
+      steps: [{ type: 'paint', fig: 'venn', answer: OPS[op] }] };
+  },
+  vennRev(rng) {
+    const pr = pickPair(rng), op = pick(rng, Object.keys(OPS));
+    const list = [{ text: op }].concat(shuffle(rng, Object.keys(OPS).filter(o => o !== op)).map(o => ({ text: o })));
+    const options = opts(rng, list, o => OPS[o.text].join());
+    options.forEach(o => { if (!o.correct) o.types = vennTypes(op, OPS[o.text]); });
+    return { prm: Object.assign(pr, { op }), scene: pairText(pr.sp, pr.a, pr.b), q: 'ぬられた ところは？', label: '▼ この ずを あらわすのは？',
+      steps: [{ type: 'opt', options, fig: 'venn', figAnswer: OPS[op] }] };
+  },
+  exclusive(rng) {
+    const want = rng() < 0.5;
+    const pr = pickPair(rng, { disjoint: want ? true : undefined });
+    const dis = regionsOf(pr.sp, pr.a, pr.b)[1].length === 0;
+    return { prm: Object.assign(pr, { dis }), scene: pairText(pr.sp, pr.a, pr.b), q: 'A と B は 排反？', label: '▼ はい か いいえ',
+      steps: [{ type: 'opt', options: yesNo(dis, 'はい（排反）', 'いいえ（排反でない）', 'haihan') }] };
+  },
+  complement(rng) {
+    const n = ri(rng, 2, 5), coin = rng() < 0.5;
+    const what = coin ? pick(rng, ['表', 'うら']) : pick(rng, ['1の目', '6の目', '偶数の目']);
+    const kind = pick(rng, ['least', 'least', 'all', 'none']);
+    const tail = { least: '少なくとも 1回 ' + what + ' が でる', all: n + '回とも ' + what + ' が でる', none: what + ' が 1回も でない' }[kind];
+    const use = kind === 'least';
+    return { prm: { n, coin, what, kind }, scene: (coin ? 'コイン' : 'サイコロ') + 'を ' + n + '回 なげる。' + tail + ' 確率を もとめたい',
+      q: '余事象を つかう？', label: '▼ どちらで もとめる？',
+      steps: [{ type: 'opt', options: yesNo(use, '余事象を つかう', 'そのまま かぞえる', 'yoji') }] };
+  },
+  addFormula(rng, fx) {
+    const pr = fx ? { sp: fx.sp, a: fx.a, b: fx.b } : pickPair(rng), r = regionsOf(pr.sp, pr.a, pr.b), n = SPACES[pr.sp].n;
+    const a = r[0].length + r[1].length, b = r[1].length + r[2].length, c = r[1].length;
+    const f = k => k + '/' + n;
+    const list = [
+      { text: f(a) + ' ' + PLUS + ' ' + f(b) + ' ' + MINUS + ' ' + f(c), v: Q(a + b - c, n) },
+      { text: f(a) + ' ' + PLUS + ' ' + f(b), v: Q(a + b, n), types: ['hiki'] },
+      { text: f(a) + ' ' + TIMES + ' ' + f(b), v: Q(a * b, n * n), types: ['waseki'] },
+      { text: '1 ' + MINUS + ' ' + f(c), v: Q(n - c, n), types: ['yoji'] },
+      { text: f(a) + ' ' + PLUS + ' ' + f(b) + ' ' + PLUS + ' ' + f(c), v: Q(a + b + c, n), types: ['scatter'] },
+    ];
+    return { prm: Object.assign(pr, { na: a, nb: b, nc: c, n }), scene: pairText(pr.sp, pr.a, pr.b), q: 'P(A∪B) を もとめる 式は？', label: '▼ 式を えらべ',
+      steps: [{ type: 'opt', options: opts(rng, list, valKey) }] };
+  },
+  // 第2章
+  indep(rng) {
+    const T = [
+      ['サイコロを 1回 なげて、つぎに コインを 1回 なげる', true],
+      ['サイコロを 2回 なげる。1回目と 2回目', true],
+      ['赤玉 3個・白玉 2個の 袋から 1個 とり、もとに もどして もう 1個 とる', true],
+      ['赤玉 3個・白玉 2個の 袋から 1個 とり、もどさずに もう 1個 とる', false],
+      ['10本中 3本 当たりの くじを A が ひき、もどさずに B が ひく', false],
+      ['10本中 3本 当たりの くじを A が ひき、もどしてから B が ひく', true],
+      ['1〜10 の カードから 1まい ひき、もどさずに もう 1まい ひく', false],
+      ['コインを 3回 なげる。1回目と 3回目', true],
+    ];
+    const [text, ans] = pick(rng, T);
+    return { prm: { text, ans }, scene: text, q: '2つの 試行は 独立？', label: '▼ はい か いいえ',
+      steps: [{ type: 'opt', options: yesNo(ans, 'はい（独立）', 'いいえ（独立でない）', 'dokuritsu') }] };
+  },
+  indepFormula(rng) {
+    const keys = Object.keys(DIE.ev), a = pick(rng, keys);
+    const k1 = outcomes('die').filter(DIE.ev[a][1]).length;
+    const second = rng() < 0.5 ? { name: 'コインで 表', p: Q(1, 2), text: '1/2', what: 'coin' }
+      : (() => { const b = pick(rng, keys); const k2 = outcomes('die').filter(DIE.ev[b][1]).length; return { name: '2個目の サイコロで ' + DIE.ev[b][0], p: Q(k2, 6), text: k2 + '/6', what: b }; })();
+    const p1 = Q(k1, 6), t1 = k1 + '/6';
+    const list = [
+      { text: t1 + ' ' + TIMES + ' ' + second.text, v: qmul(p1, second.p) },
+      { text: t1 + ' ' + PLUS + ' ' + second.text, v: qadd(p1, second.p), types: ['waseki'] },
+      { text: t1, v: p1, types: ['scatter'] },
+      { text: '1 ' + MINUS + ' ' + t1 + ' ' + TIMES + ' ' + second.text, v: qadd(Q(1), qmul(Q(-1), qmul(p1, second.p))), types: ['yoji'] },
+      { text: t1 + ' ' + TIMES + ' ' + second.text + ' ' + TIMES + ' 2', v: qmul(Q(2), qmul(p1, second.p)), types: ['scatter'] },
+      { text: second.text, v: second.p, types: ['scatter'] },
+      { text: '(1 ' + MINUS + ' ' + t1 + ') ' + TIMES + ' ' + second.text, v: qmul(qadd(Q(1), qmul(Q(-1), p1)), second.p), types: ['yoji'] },
+      { text: t1 + ' ' + TIMES + ' ' + t1, v: qmul(p1, p1), types: ['scatter'] },
+    ];
+    const first = second.what === 'coin' ? 'サイコロで ' + DIE.ev[a][0] : '1個目の サイコロで ' + DIE.ev[a][0];
+    return { prm: { a, second: second.what }, scene: (second.what === 'coin' ? 'サイコロと コインを なげる。' : 'サイコロを 2個 なげる。') + first + '、' + second.name + ' が でる',
+      q: 'この 確率を もとめる 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: opts(rng, list, valKey) }] };
+  },
+  // 第3章
+  binom(rng) {
+    const ev = pick(rng, [['1の目', 1], ['6の目', 1], ['3の倍数の目', 2], ['4以下の目', 4], ['2以下の目', 2], ['5以下の目', 5]]);
+    let n, r; do { n = ri(rng, 3, 6); r = ri(rng, 1, n - 1); } while (2 * r === n);
+    const p = Q(ev[1], 6), q = Q(6 - ev[1], 6);
+    const P = x => '(' + fr(x) + ')';
+    const C = sub(n) + 'C' + sub(r);
+    const list = [
+      { text: C + P(p) + sup(r) + P(q) + sup(n - r), v: qmul(Q(comb(n, r)), qmul(qpow(p, r), qpow(q, n - r))) },
+      { text: P(p) + sup(r) + P(q) + sup(n - r), v: qmul(qpow(p, r), qpow(q, n - r)), types: ['ncr'] },
+      { text: C + P(p) + sup(n - r) + P(q) + sup(r), v: qmul(Q(comb(n, r)), qmul(qpow(p, n - r), qpow(q, r))), types: ['pq'] },
+      { text: C + P(p) + sup(r), v: qmul(Q(comb(n, r)), qpow(p, r)), types: ['scatter'] },
+      // 値がかぶったときの予備：ₙCᵣ の r を とりちがえた式、q だけの式
+      { text: sub(n) + 'C' + sub(r + 1 <= n - 1 ? r + 1 : r - 1) + P(p) + sup(r) + P(q) + sup(n - r),
+        v: qmul(Q(comb(n, r + 1 <= n - 1 ? r + 1 : r - 1)), qmul(qpow(p, r), qpow(q, n - r))), types: ['ncr'] },
+      { text: C + P(q) + sup(n - r), v: qmul(Q(comb(n, r)), qpow(q, n - r)), types: ['scatter'] },
+    ];
+    return { prm: { ev: ev[0], k: ev[1], n, r }, scene: 'サイコロを ' + n + '回 なげる。' + ev[0] + ' が ちょうど ' + r + '回 でる',
+      q: 'この 確率を もとめる 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: opts(rng, list, valKey) }] };
+  },
+  binomK(rng) {
+    const ev = pick(rng, [['1の目', 1], ['6の目', 1], ['3の倍数の目', 2], ['4以下の目', 4]]);
+    const k = ri(rng, 3, 6), r = ri(rng, 2, k - 1);
+    const p = Q(ev[1], 6), q = Q(6 - ev[1], 6);
+    const P = x => '(' + fr(x) + ')';
+    const list = [
+      { text: sub(k - 1) + 'C' + sub(r - 1) + P(p) + sup(r - 1) + P(q) + sup(k - r) + ' ' + TIMES + ' ' + fr(p),
+        v: qmul(Q(comb(k - 1, r - 1)), qmul(qpow(p, r), qpow(q, k - r))) },
+      { text: sub(k) + 'C' + sub(r) + P(p) + sup(r) + P(q) + sup(k - r), v: qmul(Q(comb(k, r)), qmul(qpow(p, r), qpow(q, k - r))), types: ['last'] },
+      { text: P(p) + sup(r - 1) + P(q) + sup(k - r) + ' ' + TIMES + ' ' + fr(p), v: qmul(qpow(p, r), qpow(q, k - r)), types: ['ncr'] },
+      { text: sub(k - 1) + 'C' + sub(r - 1) + P(q) + sup(r - 1) + P(p) + sup(k - r) + ' ' + TIMES + ' ' + fr(p),
+        v: qmul(Q(comb(k - 1, r - 1)), qmul(qpow(q, r - 1), qpow(p, k - r + 1))), types: ['pq'] },
+      { text: sub(k - 1) + 'C' + sub(r - 1) + P(p) + sup(r - 1) + P(q) + sup(k - r), v: qmul(Q(comb(k - 1, r - 1)), qmul(qpow(p, r - 1), qpow(q, k - r))), types: ['last'] },
+      // 値がかぶったときの予備
+      { text: sub(k - 1) + 'C' + sub(r - 1) + P(p) + sup(r - 1) + P(q) + sup(k - r) + ' ' + TIMES + ' ' + fr(q), v: qmul(Q(comb(k - 1, r - 1)), qmul(qpow(p, r - 1), qpow(q, k - r + 1))), types: ['last'] },
+      { text: sub(k) + 'C' + sub(r - 1) + P(p) + sup(r - 1) + P(q) + sup(k - r) + ' ' + TIMES + ' ' + fr(p), v: qmul(Q(comb(k, r - 1)), qmul(qpow(p, r), qpow(q, k - r))), types: ['ncr'] },
+      { text: P(p) + sup(r), v: qpow(p, r), types: ['scatter'] },
+      { text: P(q) + sup(r) + P(p) + sup(k - r) + ' ' + TIMES + ' ' + fr(p), v: qmul(qpow(q, r), qpow(p, k - r + 1)), types: ['pq'] },
+      { text: sub(k) + 'C' + sub(r) + P(p) + sup(r), v: qmul(Q(comb(k, r)), qpow(p, r)), types: ['scatter'] },
+    ];
+    return { prm: { ev: ev[0], k: ev[1], n: k, r }, scene: 'サイコロを くりかえし なげる。' + k + '回目に、' + ev[0] + ' が ' + r + '回目の ' + ev[0] + ' として でる',
+      q: 'この 確率を もとめる 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: opts(rng, list, valKey) }] };
+  },
+  // 第4章
+  condVenn(rng) {
+    const pr = pickPair(rng), given = pick(rng, ['A', 'B']);
+    const other = given === 'A' ? 'B' : 'A';
+    return { prm: Object.assign(pr, { given }), scene: pairText(pr.sp, pr.a, pr.b) + '。' + given + ' が おきた とき、' + other + ' が おきる 確率 P_' + given + '(' + other + ')',
+      q: 'まず 分母、つぎに 分子を ぬれ', label: '▼ ベン図を ぬれ（2だん）',
+      steps: [{ type: 'paint', fig: 'venn', answer: given === 'A' ? [0, 1] : [1, 2], part: '分母' }, { type: 'paint', fig: 'venn', answer: [1], part: '分子' }] };
+  },
+  condTable(rng) {
+    const T = pick(rng, [{ rows: ['男子', '女子'], cols: ['めがね あり', 'めがね なし'], unit: '人' },
+                         { rows: ['1組', '2組'], cols: ['運動部', '文化部'], unit: '人' }]);
+    const cnt = Array.from({ length: 4 }, () => ri(rng, 3, 15));
+    const byRow = rng() < 0.5, i = ri(rng, 0, 1), j = ri(rng, 0, 1);
+    const scene = byRow ? T.rows[i] + 'の 中から 1人 えらぶ とき、' + T.cols[j] + 'の 人である 確率'
+                        : T.cols[j] + 'の 人の 中から 1人 えらぶ とき、' + T.rows[i] + 'である 確率';
+    return { prm: { T, cnt, byRow, i, j }, scene: '下の 表の 人たちから 1人 えらぶ。' + scene, q: 'まず 分母、つぎに 分子を ぬれ', label: '▼ 表を ぬれ（2だん）',
+      steps: [{ type: 'paint', fig: 'table', answer: byRow ? [i * 2, i * 2 + 1] : [j, 2 + j], part: '分母' },
+              { type: 'paint', fig: 'table', answer: [i * 2 + j], part: '分子' }] };
+  },
+  condFormula(rng) {
+    const pr = pickPair(rng), given = pick(rng, ['A', 'B']), other = given === 'A' ? 'B' : 'A';
+    const list = [
+      { text: '{n(A∩B)|n(' + given + ')}' },
+      { text: '{n(A∩B)|n(U)}', types: ['bunbo'] },
+      { text: '{n(' + given + ')|n(A∩B)}', types: ['bunbo'] },
+      { text: '{n(A∩B)|n(' + other + ')}', types: ['jouken'] },
+    ];
+    return { prm: Object.assign(pr, { given }), scene: pairText(pr.sp, pr.a, pr.b) + '（全体 U）。' + given + ' が おきた とき、' + other + ' が おきる 確率',
+      q: 'P_' + given + '(' + other + ') の 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: opts(rng, list, o => o.text) }] };
+  },
+  mult(rng) {
+    const N = pick(rng, [8, 10, 12]), k = ri(rng, 2, 4), both = rng() < 0.5;
+    const L = both
+      ? [{ text: k + '/' + N + ' ' + TIMES + ' ' + (k - 1) + '/' + (N - 1), v: Q(k * (k - 1), N * (N - 1)) },
+         { text: k + '/' + N + ' ' + TIMES + ' ' + k + '/' + N, v: Q(k * k, N * N), types: ['nibon'] },
+         { text: k + '/' + N + ' ' + TIMES + ' ' + (k - 1) + '/' + N, v: Q(k * (k - 1), N * N), types: ['nibon'] },
+         { text: k + '/' + N + ' ' + PLUS + ' ' + (k - 1) + '/' + (N - 1), v: qadd(Q(k, N), Q(k - 1, N - 1)), types: ['waseki'] }]
+      : [{ text: (N - k) + '/' + N + ' ' + TIMES + ' ' + k + '/' + (N - 1), v: Q((N - k) * k, N * (N - 1)) },
+         { text: (N - k) + '/' + N + ' ' + TIMES + ' ' + k + '/' + N, v: Q((N - k) * k, N * N), types: ['nibon'] },
+         { text: (N - k) + '/' + N + ' ' + TIMES + ' ' + (k - 1) + '/' + (N - 1), v: Q((N - k) * (k - 1), N * (N - 1)), types: ['nibon'] },
+         { text: (N - k) + '/' + N + ' ' + PLUS + ' ' + k + '/' + (N - 1), v: qadd(Q(N - k, N), Q(k, N - 1)), types: ['waseki'] }];
+    return { prm: { N, k, both }, scene: N + '本中 ' + k + '本が 当たりの くじを、もどさずに 続けて 2本 ひく。' + (both ? '2本とも 当たり' : '1本目は はずれ、2本目は 当たり'),
+      q: 'この 確率を もとめる 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: opts(rng, L, valKey) }] };
+  },
+  // 第5章
+  distTable(rng) { const g = scoreGame(rng); return Object.assign(g, { q: '確率分布の 表は？', label: '▼ 表を えらべ', steps: [{ type: 'opt', options: g.tableOpts(rng) }] }); },
+  expFormula(rng) { const g = scoreGame(rng); return Object.assign(g, { q: '期待値を もとめる 式は？', label: '▼ 式を えらべ', steps: [{ type: 'opt', options: g.expOpts(rng) }] }); },
+  // 裏ダンジョン
+  bayesTree(rng) { const b = bayesSet(rng); return Object.assign(b, { q: 'まず 分母、つぎに 分子の 枝を ぬれ', label: '▼ 樹形図を ぬれ（2だん）',
+    steps: [{ type: 'paint', fig: 'tree', answer: b.denom, part: '分母' }, { type: 'paint', fig: 'tree', answer: [b.numer], part: '分子' }] }); },
+  bayesFormula(rng) { const b = bayesSet(rng); return Object.assign(b, { q: 'この 確率を もとめる 式は？', label: '▼ 式を えらべ',
+    steps: [{ type: 'opt', options: b.formulaOpts(rng), fig: 'tree', figAnswer: [] }] }); },
+};
+function vennTypes(op, set) {
+  if (DUAL[op] && OPS[DUAL[op]].join() === set.join()) return ['waseki'];
+  const comp = [0, 1, 2, 3].filter(x => !OPS[op].includes(x));
+  if (comp.join() === set.join()) return ['yoji'];
+  return ['scatter'];
+}
+// 期待値の場面：サイコロ1回、事象 E なら x1点、それ以外 x2点
+function scoreGame(rng) {
+  // 3つの目の事象は「表の 値と 確率の ずれ」が 正解と 同じに なるので 使わない
+  const ev = pick(rng, [['5以上', x => x >= 5], ['1', x => x === 1], ['6', x => x === 6], ['2以下', x => x <= 2], ['2以上', x => x >= 2], ['5以下', x => x <= 5]]);
+  const k = outcomes('die').filter(ev[1]).length;
+  const x1 = pick(rng, [100, 60, 50, 30]), x2 = pick(rng, [0, 10]);
+  const p1 = Q(k, 6), p2 = Q(6 - k, 6);
+  const t1 = k + '/6', t2 = (6 - k) + '/6';
+  const scene = 'サイコロを 1回 なげて、' + ev[0] + 'の目 なら ' + x1 + '点、それ以外 なら ' + x2 + '点 もらえる';
+  const tbl = (a, b) => 'X|' + x1 + '|' + x2 + ';P|' + a + '|' + b;
+  return {
+    prm: { ev: ev[0], k, x1, x2 }, scene,
+    tableOpts(r) {
+      const list = [
+        { text: tbl(t1, t2) },
+        { text: tbl(t2, t1), types: ['zure'] },
+        { text: tbl(t1, (7 - k) + '/6'), types: ['goukei'] },
+        { text: tbl('1/2', '1/2'), types: ['scatter'] },
+        { text: tbl('1/6', '5/6'), types: ['scatter'] },
+        { text: tbl('2/6', '4/6'), types: ['scatter'] },
+      ];
+      return opts(r, list, o => o.text.split(';')[1].split('|').slice(1).map(s => { const [a, b] = s.split('/').map(Number); const q = Q(a, b); return q.n + '/' + q.d; }).join());
+    },
+    expOpts(r) {
+      const list = [
+        { text: x1 + TIMES + t1 + ' ' + PLUS + ' ' + x2 + TIMES + t2, v: qadd(qmul(Q(x1), p1), qmul(Q(x2), p2)) },
+        { text: '(' + x1 + ' ' + PLUS + ' ' + x2 + ')/2', v: Q(x1 + x2, 2), types: ['heikin'] },
+        { text: x1 + ' ' + PLUS + ' ' + x2, v: Q(x1 + x2), types: ['kake'] },
+        { text: x1 + TIMES + t2 + ' ' + PLUS + ' ' + x2 + TIMES + t1, v: qadd(qmul(Q(x1), p2), qmul(Q(x2), p1)), types: ['zure'] },
+        { text: x1 + TIMES + t1, v: qmul(Q(x1), p1), types: ['kake'] },
+      ];
+      return opts(r, list, valKey);
+    },
+  };
+}
+// 原因の確率：工場 A・B（割合）と、それぞれの不良品の割合
+function bayesSet(rng) {
+  const a = pick(rng, [30, 40, 60, 70]), b = 100 - a;
+  // 2つの工場の「不良品になる割合」が同じだと、分子を取りちがえても答えが同じになるので さける
+  let dA, dB; do { dA = ri(rng, 1, 5); dB = ri(rng, 1, 5); } while (dA === dB || a * dA === b * dB || a * (100 - dA) === b * (100 - dB));
+  const bad = rng() < 0.6, who = pick(rng, ['A', 'B']);
+  // 葉：0 A→不良、1 A→良、2 B→不良、3 B→良
+  const denom = bad ? [0, 2] : [1, 3];
+  const numer = who === 'A' ? (bad ? 0 : 1) : (bad ? 2 : 3);
+  const dec = x => String(x / 100).replace(/^0/, '0');
+  const leafP = [[a, dA], [a, 100 - dA], [b, dB], [b, 100 - dB]].map(([f, d]) => dec(f) + TIMES + dec(d));
+  const leafV = [[a, dA], [a, 100 - dA], [b, dB], [b, 100 - dB]].map(([f, d]) => Q(f * d, 10000));
+  const scene = '製品の ' + a + '% を 工場 A、' + b + '% を 工場 B が つくる。不良品の 割合は A が ' + dA + '%、B が ' + dB + '%。1個 えらんだら ' +
+    (bad ? '不良品' : '良品') + ' だった。それが 工場 ' + who + ' の 製品である 確率';
+  return {
+    prm: { a, dA, dB, bad, who }, scene, denom, numer,
+    formulaOpts(r) {
+      const sum = '(' + leafP[denom[0]] + ' ' + PLUS + ' ' + leafP[denom[1]] + ')';
+      const vs = qadd(leafV[denom[0]], leafV[denom[1]]);
+      const other = denom.find(x => x !== numer);
+      const div = (x, y) => Q(x.n * y.d, x.d * y.n);
+      const list = [
+        { text: '{' + leafP[numer] + '|' + sum.slice(1, -1) + '}', v: div(leafV[numer], vs) },
+        { text: '{' + leafP[numer] + '|' + dec(who === 'A' ? a : b) + '}', v: div(leafV[numer], Q(who === 'A' ? a : b, 100)), types: ['bunbo'] },
+        { text: leafP[numer], v: leafV[numer], types: ['bunbo'] },
+        { text: '{' + leafP[other] + '|' + sum.slice(1, -1) + '}', v: div(leafV[other], vs), types: ['jouken'] },
+        { text: '{' + leafP[numer] + '|' + leafP[other] + '}', v: div(leafV[numer], leafV[other]), types: ['bunbo'] },
+      ];
+      return opts(r, list, valKey);
+    },
+  };
+}
+
+// ---------- 章 ----------
+const CHAPTERS = [
+  { ch: 1, title: '第1章 わけかたの騎士', unit: '確率の 基本性質', hero: { name: 'ワカツ', sprite: '🛡️' },
+    modes: ['venn', 'venn', 'exclusive', 'complement', 'addFormula'], rev: 'vennRev',
+    enemy: { name: 'カサナリン', sprite: '🫧' }, boss: { name: 'ベンノカベ', sprite: '🧱' }, say: 'かさなりを みきわめよ！', bossHp: 2, normal: 3 },
+  { ch: 2, title: '第2章 ひとり旅の魔法使い', unit: '独立な 試行', hero: { name: 'ヒトリ', sprite: '🧙' },
+    modes: ['indep', 'indep', 'indepFormula', 'indepFormula'],
+    enemy: { name: 'ムスビメ', sprite: '🪢' }, boss: { name: 'ツナガリグモ', sprite: '🕸️' }, say: 'たがいに えいきょう しないなら かけざん！', bossHp: 2, normal: 3 },
+  { ch: 3, title: '第3章 くりかえしの踊り子', unit: '反復試行', hero: { name: 'メグル', sprite: '💃' },
+    modes: ['binom', 'binom', 'binomK', 'complement'],
+    enemy: { name: 'ナンカイ', sprite: '🌀' }, boss: { name: 'ナンドメ', sprite: '🐌' }, say: 'どの 回に おきるか えらぶ → ₙCᵣ！', bossHp: 2, normal: 3 },
+  { ch: 4, title: '第4章 もしもの占い師', unit: '条件付き確率・乗法定理', hero: { name: 'モシモ', sprite: '🔮' },
+    modes: ['condVenn', 'condTable', 'condFormula', 'mult'],
+    enemy: { name: 'モシモシ', sprite: '📞' }, boss: { name: 'ブンボドリ', sprite: '🦤' }, say: '「〜とき」の 〜が 分母に なる！', bossHp: 2, normal: 3 },
+  { ch: 5, title: '第5章 みこみの商人', unit: '期待値', hero: { name: 'ミコミ', sprite: '💰' },
+    modes: ['distTable', 'expFormula', 'distTable', 'expFormula'],
+    enemy: { name: 'ミツモリ', sprite: '🧮' }, boss: { name: 'ソロバンオー', sprite: '🦁' }, say: '値 × 確率 を たしあわせる！', bossHp: 2, normal: 3 },
+  { ch: 6, title: '第6章 みちびかれし ゆうしゃ', unit: 'まぜこぜ（どの 考え方か）', hero: { name: 'ゆうしゃ', sprite: '⚔️' },
+    modes: ['addFormula', 'indepFormula', 'binom', 'mult', 'condFormula', 'expFormula'], mix: true,
+    enemy: { name: 'マゼコゼ', sprite: '🌪️' }, boss: { name: 'カクリツノマオウ', sprite: '😈' }, say: 'まず どの 考え方か みきわめよ！', bossHp: 4, normal: 5 },
+  { ch: 7, title: '裏ダンジョン', unit: '原因の 確率', hero: { name: 'ゆうしゃ', sprite: '⚔️' },
+    modes: ['bayesTree', 'bayesFormula'],
+    enemy: { name: 'ナゼ', sprite: '❓' }, boss: { name: 'ナゼナゼ', sprite: '👁️' }, say: '結果から 原因を さかのぼれ！', bossHp: 4, normal: 3 },
+];
+// 6章：考え方（どの章の 考え方か）
+const METHOD = { addFormula: ['加法定理', 1], indepFormula: ['独立な 試行（かけざん）', 2], binom: ['反復試行', 3], mult: ['乗法定理', 4], condFormula: ['条件付き確率', 4], expFormula: ['期待値', 5] };
+const METHOD_NAMES = ['加法定理', '独立な 試行（かけざん）', '反復試行', '乗法定理', '条件付き確率', '期待値'];
+
+function build(mode, rng, opt = {}) {
+  const p = GEN[mode](rng, opt.fixed);   // fixed：中身を指定して作る（チュートリアル用）
+  p.mode = mode;
+  if (opt.mix) {
+    const [right] = METHOD[mode];
+    // 乗法定理と条件付き確率は となりあう考え方なので、同じ問題の選択肢に並べない
+    const others = shuffle(rng, METHOD_NAMES.filter(m => m !== right && !(mode === 'mult' && m === '条件付き確率') && !(mode === 'condFormula' && m === '乗法定理'))).slice(0, 3);
+    const options = shuffle(rng, [right].concat(others).map(m => ({ text: m, correct: m === right, types: m === right ? [] : ['method'] })));
+    p.steps = [{ type: 'opt', options, part: 'かんがえかた' }].concat(p.steps);
+    p.method = right;
+    p.mix = true;
+  }
+  p.reason = reasonLines(p);
+  return p;
+}
+
+// ---------- 判定と、間違い方 ----------
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+function judgeStep(st, ans) { return st.type === 'opt' ? st.options[ans.opt].correct : sameSet(ans.sel, st.answer); }
+function classifyStep(p, si, ans) {
+  const st = p.steps[si];
+  if (st.type === 'opt') return st.options[ans.opt].types.slice();
+  const S = ans.sel.slice().sort();
+  if (p.mode === 'venn') return vennTypes(p.prm.op, S);
+  if (st.part === '分母') {
+    // 全体を分母にした → 分母／条件を とりちがえた → 条件
+    if (p.mode === 'condVenn') { if (sameSet(S, [0, 1, 2, 3])) return ['bunbo']; if (sameSet(S, p.prm.given === 'A' ? [1, 2] : [0, 1])) return ['jouken']; }
+    if (p.mode === 'condTable') { const { byRow, i, j } = p.prm; if (sameSet(S, [0, 1, 2, 3])) return ['bunbo']; if (sameSet(S, byRow ? [j, 2 + j] : [i * 2, i * 2 + 1])) return ['jouken']; }
+    if (p.mode === 'bayesTree') { if (sameSet(S, p.prm.who === 'A' ? [0, 1] : [2, 3])) return ['bunbo']; if (S.length === 1 && st.answer.includes(S[0])) return ['bunbo']; }
+    return ['scatter'];
+  }
+  return ['scatter'];
+}
+const TYPE_TEXT = {
+  waseki: '∪（または）と ∩（かつ）／たしざんと かけざんを とりちがえた', yoji: '余事象の つかいかたが ちがう', hiki: 'かさなり P(A∩B) を ひいていない',
+  haihan: '排反（同時に おこらない）かどうかの みきわめが ちがう', dokuritsu: '独立（えいきょう しない）かどうかの みきわめが ちがう',
+  ncr: 'ₙCᵣ（どの 回に おきるか）が ちがう／わすれた', pq: 'おきる 確率と おきない 確率の 回数が はんたい', last: '「◯回目に ちょうど」の 最後の 1回を 固定していない',
+  bunbo: '分母が ちがう', jouken: '条件（「〜とき」の 〜）を とりちがえた', nibon: '2本目は 1本へった あとの 確率に なる',
+  zure: '値と 確率の くみあわせが ずれている', goukei: '確率の 合計が 1 に なっていない', heikin: '値を たして わる だけでは 期待値に ならない',
+  kake: '確率を かけていない／たりない', method: 'つかう 考え方が ちがう', scatter: 'えらびかたが ばらばら',
+};
+const MASTER_TEXT = { waseki: 'または と かつ', yoji: '余事象', hiki: 'かさなりを ひく', haihan: '排反', dokuritsu: '独立', ncr: 'ₙCᵣ', pq: 'おきる・おきない', last: '最後の 1回', bunbo: '分母', jouken: '条件', nibon: '2本目', zure: '値と 確率', goukei: '合計 1', heikin: '期待値の 式', kake: '確率を かける', method: '考え方の みきわめ' };
+function describe(p, si, types) { return types.map(t => (t === 'scatter' && p.steps[si].type === 'opt' ? 'ちがう ものを えらんだ' : TYPE_TEXT[t])).join('、'); }
+
+// ---------- 理由 ----------
+function reasonLines(p) {
+  const q = p.prm, L = [];
+  const m = p.mode;
+  if (m === 'venn' || m === 'vennRev') {
+    const r = regionsOf(q.sp, q.a, q.b);
+    L.push('A だけ：' + (r[0].join('・') || 'なし') + '　両方：' + (r[1].join('・') || 'なし') + '　B だけ：' + (r[2].join('・') || 'なし') + '　どちらでもない：' + (r[3].join('・') || 'なし'));
+    L.push('∪ は「または」（どちらか 入れば よい）、∩ は「かつ」（両方）、 ̄ は「でない」');
+  }
+  if (m === 'exclusive') { const r = regionsOf(q.sp, q.a, q.b); L.push(q.dis ? 'A と B の 両方に 入る 結果は ない → 排反' : '両方に 入る 結果 ' + r[1].join('・') + ' が ある → 排反でない'); }
+  if (m === 'complement') L.push(q.kind === 'least' ? '「少なくとも 1回」は 余事象「1回も でない」を 1 から ひく' : 'この 事象は そのまま かぞえられる（場合わけが 少ない）');
+  if (m === 'addFormula') L.push('排反でない ときは かさなりを ひく：P(A∪B) ＝ P(A) ＋ P(B) − P(A∩B)');
+  if (m === 'indep') L.push(q.ans ? 'あとの 試行の 結果は まえの 結果に えいきょう されない → 独立' : 'もどさないので、あとの 確率が まえの 結果で かわる → 独立でない');
+  if (m === 'indepFormula') L.push('独立な 試行は それぞれの 確率を かける');
+  if (m === 'binom') L.push(q.n + '回の うち どの ' + q.r + '回で おきるか → ' + sub(q.n) + 'C' + sub(q.r) + ' とおり、それぞれ (p)' + sup(q.r) + '(1−p)' + sup(q.n - q.r));
+  if (m === 'binomK') L.push(q.n + '回目は かならず おきる（最後に × p）。その まえの ' + (q.n - 1) + '回で ' + (q.r - 1) + '回 → ' + sub(q.n - 1) + 'C' + sub(q.r - 1));
+  if (m === 'condVenn' || m === 'condFormula') L.push('「' + q.given + ' が おきた とき」→ 分母は ' + q.given + '、分子は ' + q.given + ' の 中で もう一方も おきる A∩B');
+  if (m === 'condTable') L.push('「〜の 中から」の 〜が 分母（' + (q.byRow ? q.T.rows[q.i] + 'の 行' : q.T.cols[q.j] + 'の 列') + '）、分子は その 中の マス');
+  if (m === 'mult') L.push('1本目を ひいた あと、のこりは ' + (q.N - 1) + '本。2本目の 確率は 1本目の 結果で かわる');
+  if (m === 'distTable') L.push('とりうる 値ごとに 確率を かき、確率の 合計が 1 に なる こと');
+  if (m === 'expFormula') L.push('期待値 ＝（値 × その 確率）の 合計');
+  if (m === 'bayesTree' || m === 'bayesFormula') L.push('分母は「' + (q.bad ? '不良品' : '良品') + 'に なる 枝 ぜんぶ」、分子は その 中で 工場 ' + q.who + ' を 通る 枝');
+  if (p.mix) L.unshift('この 問題は「' + p.method + '」');
+  return L;
+}
+
+// ---------- 苦手・同じ中身 ----------
+function likeOK(np, miss) { return np.mode === miss.mode; }
+function clash(a, b) { return a.mode === b.mode && JSON.stringify(a.prm) === JSON.stringify(b.prm); }
+function newContext() { return { last: null, weak: {}, log: [] }; }
+// 1つの章の 戦い：ふつうの敵 normal 戦（第1章は 1戦を 逆向き）→ ボス bossHp 問
+function makeSlots(ch, rng, ctx) {
+  const C = CHAPTERS[ch - 1];
+  const weakModes = ctx && C.mix ? Object.keys(ctx.weak).filter(m => C.modes.includes(m)) : [];
+  // 苦手の問題を先に入れてから、ならびだけ まぜる
+  let modes = shuffle(rng, weakModes.concat(shuffle(rng, C.modes)).slice(0, C.normal));
+  while (modes.length < C.normal) modes.push(pick(rng, C.modes));
+  if (C.rev) modes[ri(rng, 0, C.normal - 1)] = C.rev;
+  const boss = Array.from({ length: C.bossHp }, () => pick(rng, C.modes));
+  return modes.map(m => ({ ch, mode: m, boss: false })).concat(boss.map(m => ({ ch, mode: m, boss: true })));
+}
+function makeProblem(slot, ctx, rng) {
+  const C = CHAPTERS[slot.ch - 1];
+  const w = ctx.weak[slot.mode];
+  let p = null;
+  for (let i = 0; i < 50 && !p; i++) { const c = build(slot.mode, rng, { mix: !!C.mix }); if (!(ctx.last && clash(c, ctx.last))) p = c; }
+  if (!p) p = build(slot.mode, rng, { mix: !!C.mix });
+  p.target = { lv: !!w };
+  p.ch = slot.ch;
+  ctx.last = { mode: p.mode, prm: p.prm };
+  return p;
+}
+function record(ctx, p, ok, types) {
+  const ev = { ch: p.ch, mode: p.mode, ok, types: types || [], target: p.target, mastered: [] };
+  const w = ctx.weak[p.mode];
+  if (ok) { if (w && ++w.got >= 2) { ev.mastered.push(...w.types); delete ctx.weak[p.mode]; } }
+  else {
+    const main = (types || []).filter(t => t !== 'scatter');
+    if (main.length) ctx.weak[p.mode] = { types: main, got: 0 };
+    else if (w) w.got = 0;
+  }
+  ctx.log.push(ev);
+  return ev;
+}
+
+G.ProbCore = {
+  Q, qeq, qnum, comb, SPACES, outcomes, region, regionsOf, OPS, CHAPTERS, METHOD, GEN, build, judgeStep, classifyStep,
+  describe, TYPE_TEXT, MASTER_TEXT, reasonLines, likeOK, clash, newContext, makeSlots, makeProblem, record, mulberry32,
+};
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+
+<!-- ========== 画面 ========== -->
+<script>
+(function () {
+'use strict';
+const C = window.ProbCore;
+const MAX_LIVES = 3;
+const rng = Math.random;
+const $ = id => document.getElementById(id);
+const canvas = $('plane');
+const figWrap = $('figWrap');
+const gameEl = $('game');
+const monsterEl = $('monster');
+const optBtns = [...document.querySelectorAll('#controls .opt')];
+
+const state = {
+  ch: 1, slots: [], slotIdx: 0, hp: 1, lives: MAX_LIVES,
+  problem: null, si: 0,          // si ＝ 何段目か
+  sel: [], opt: -1,
+  phase: 'idle', reveal: false, view: 'ans', mineSel: [],
+  tut: null, blinkOn: false,
+  ctx: C.newContext(), onNext: null,
+};
+const p = () => state.problem;
+const step = () => p() && p().steps[state.si];
+const chap = () => C.CHAPTERS[state.ch - 1];
+
+// ---------- 記録（クリアした章） ----------
+function loadClear() { try { return JSON.parse(localStorage.getItem('kakuritsu-clear') || '{}'); } catch (e) { return memClear; } }
+let memClear = {};
+function saveClear(ch) {
+  const c = loadClear(); c[ch] = true; memClear = c;
+  try { localStorage.setItem('kakuritsu-clear', JSON.stringify(c)); } catch (e) { /* 保存できなくても その回は遊べる */ }
+}
+
+// ---------- 文字（TeX 風） ----------
+function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function fracHTML(nu, de) { return '<span class="fr"><span class="nu">' + nu + '</span><span class="de">' + de + '</span></span>'; }
+function mathHTML(text) {
+  let h = esc(text);
+  h = h.replace(/\{([^{}|]*)\|([^{}]*)\}/g, (m, a, b) => fracHTML(a, b));                     // {分子|分母}
+  h = h.replace(/(\d+)\/(\d+)/g, (m, a, b) => fracHTML(a, b));                                 // 3/6
+  h = h.replace(/P_([AB])\(([AB])\)/g, 'P<sub>$1</sub>($2)');
+  // ₆C₂ → 左下・右下の小さい数字
+  const SUBS = '₀₁₂₃₄₅₆₇₈₉', unsub = t => t.split('').map(c => SUBS.indexOf(c)).join('');
+  h = h.replace(/([₀-₉]+)C([₀-₉]+)/g, (m, n, r) => '<sub class="ln">' + unsub(n) + '</sub>C<sub>' + unsub(r) + '</sub>');
+  return h;
+}
+function tableHTML(text) {   // 'X|100|0;P|2/6|4/6' → 小さな表
+  return '<table class="dist">' + text.split(';').map(row => '<tr>' + row.split('|').map((c, i) => (i ? '<td>' + mathHTML(c) + '</td>' : '<th>' + c + '</th>')).join('') + '</tr>').join('') + '</table>';
+}
+
+// ---------- 表示 ----------
+function renderStatus() {
+  const c = chap();
+  $('levelDisplay').textContent = state.tut ? 'れんしゅう' : c.ch === 7 ? '裏' : '第' + c.ch + '章';
+  $('livesDisplay').innerHTML = '♥'.repeat(Math.max(0, state.lives)) + '<span class="empty">' + '♡'.repeat(MAX_LIVES - Math.max(0, state.lives)) + '</span>';
+  const done = Math.min(state.slotIdx, c.normal);
+  $('progressDisplay').textContent = state.tut ? (state.tut.i + 1) + '/' + TUT.length : state.slotIdx >= c.normal ? 'ボスせん' : done + '/' + c.normal;
+  $('enemyHpDisplay').textContent = 'HP ' + Math.max(0, state.hp);
+  $('bossDisplay').textContent = state.slotIdx >= c.normal ? c.boss.name + ' と たたかい中！' : '■'.repeat(done) + '□'.repeat(c.normal - done) + '　あと ' + (c.normal - done) + 'たい';
+}
+function renderEnemy() {
+  const c = chap(), boss = state.slotIdx >= c.normal, e = boss ? c.boss : c.enemy;
+  monsterEl.textContent = e.sprite; monsterEl.className = boss ? 'boss' : ''; $('monsterName').textContent = e.name;
+}
+function renderProblem() {
+  const q = p(), st = step();
+  $('problemLabel').textContent = q.label + (q.steps.length > 1 ? '　［' + (state.si + 1) + '/' + q.steps.length + (st.part ? '：' + st.part : '') + '］' : '');
+  $('problemExpr').innerHTML = mathHTML(st.part === 'かんがえかた' ? 'つかう 考え方は？' : st.part ? st.part + 'を ぬれ' : q.q);
+  $('scene').innerHTML = mathHTML(q.scene);
+  const fig = st.fig || null;
+  figWrap.classList.toggle('hidden', !fig);
+  $('scene').classList.toggle('big', !fig);
+  resizePlane();
+}
+function show(el, on) { el.classList.toggle('hidden', !on); }
+function renderControls() {
+  const st = step(), next = state.phase === 'next';
+  const os = st && st.type === 'opt' ? st.options : [];
+  optBtns.forEach((b, i) => {
+    show(b, i < os.length);
+    if (i >= os.length) return;
+    const o = os[i];
+    b.innerHTML = o.text.includes(';') ? tableHTML(o.text) : mathHTML(o.text);
+    b.dataset.text = o.text;
+    b.classList.toggle('on', state.opt === i && !state.reveal);
+    b.classList.toggle('right', state.reveal && o.correct);
+    b.classList.toggle('wrong', state.reveal && state.opt === i && !o.correct);
+    b.classList.toggle('two', os.length === 2);
+  });
+  const paint = st && st.type === 'paint';
+  show($('mineBtn'), next && paint && !state.tut); show($('ansBtn'), next && paint && !state.tut);
+  $('mineBtn').classList.toggle('on', state.view === 'mine'); $('ansBtn').classList.toggle('on', state.view === 'ans');
+  show($('decideBtn'), !next); show($('nextBtn'), next);
+  $('decideBtn').disabled = !ready();
+}
+function ready() {
+  const st = step();
+  if (!st || state.phase !== 'play') return false;
+  return st.type === 'opt' ? state.opt >= 0 : state.sel.length > 0;
+}
+function setMessage(text) { $('msgText').innerHTML = mathHTML(text); $('message').scrollTop = 0; }
+
+// ---------- 図（ベン図・表・樹形図） ----------
+let DPR = 1;
+const ASPECT = 0.6;
+function resizePlane() {
+  if (figWrap.classList.contains('hidden')) return;
+  const wMax = figWrap.clientWidth - 12, hMax = figWrap.clientHeight - 6;
+  const W = Math.max(140, Math.floor(Math.min(wMax, hMax / ASPECT)));
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.style.width = W + 'px'; canvas.style.height = Math.round(W * ASPECT) + 'px';
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(W * ASPECT * DPR);
+  draw(); placeTapHint();
+}
+const YEL = '#ffd84a', BLUE = '#5b8cff';
+// 何を塗って見せるか
+function shown() {
+  const st = step();
+  if (!st) return { set: [], ans: false };
+  if (st.type === 'opt') return { set: st.figAnswer || [], ans: true };
+  if (state.reveal && !(state.phase === 'next' && state.view === 'mine')) return { set: st.answer, ans: true };
+  return { set: state.reveal ? state.mineSel : state.sel, ans: false };
+}
+function vennGeo(W, H) { const r = H * 0.33; return { r, ax: W * 0.5 - r * 0.6, bx: W * 0.5 + r * 0.6, cy: H * 0.52, x0: W * 0.06, y0: H * 0.08, x1: W * 0.94, y1: H * 0.96 }; }
+function vennRegion(g, x, y) {
+  const inA = Math.hypot(x - g.ax, y - g.cy) < g.r, inB = Math.hypot(x - g.bx, y - g.cy) < g.r;
+  if (x < g.x0 || x > g.x1 || y < g.y0 || y > g.y1) return null;
+  return inA ? (inB ? 1 : 0) : (inB ? 2 : 3);
+}
+function treeGeo(W, H) { return { rootX: W * 0.08, midX: W * 0.36, leafX: W * 0.66, ys: [0.14, 0.38, 0.62, 0.86].map(f => H * f), midY: [H * 0.26, H * 0.74] }; }
+function tableGeo(W, H) { return { x0: W * 0.30, y0: H * 0.24, cw: W * 0.32, ch: H * 0.34 }; }
+function draw() {
+  const ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height, d = DPR, q = p(), st = step();
+  ctx.fillStyle = '#000a18'; ctx.fillRect(0, 0, W, H);
+  if (!q || !st || !st.fig) return;
+  const sh = shown(), col = sh.ans ? 'rgba(150,118,0,0.85)' : 'rgba(30,90,210,0.85)';
+  const blink = state.tut && state.tut.step === 'tap' && state.blinkOn ? st.answer : [];
+  ctx.font = (13 * d) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (st.fig === 'venn') {
+    const g = vennGeo(W, H);
+    // 区画ごとに塗る（画素ではなく、合成で）
+    const paintRegion = (r, color) => {
+      ctx.save(); ctx.fillStyle = color;
+      ctx.beginPath(); ctx.rect(g.x0, g.y0, g.x1 - g.x0, g.y1 - g.y0); ctx.clip();
+      const circ = cx => { ctx.beginPath(); ctx.arc(cx, g.cy, g.r, 0, Math.PI * 2); };
+      if (r === 1) { circ(g.ax); ctx.clip(); circ(g.bx); ctx.fill(); }
+      else if (r === 0 || r === 2) {
+        const [inX, outX] = r === 0 ? [g.ax, g.bx] : [g.bx, g.ax];
+        circ(inX); ctx.clip();
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(outX, g.cy, g.r, 0, Math.PI * 2, true); ctx.fill('evenodd');
+      } else {
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(g.ax, g.cy, g.r, 0, Math.PI * 2, true); ctx.clip('evenodd');
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(g.bx, g.cy, g.r, 0, Math.PI * 2, true); ctx.fill('evenodd');
+      }
+      ctx.restore();
+    };
+    sh.set.forEach(r => paintRegion(r, col));
+    blink.forEach(r => paintRegion(r, 'rgba(255,216,74,0.45)'));
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d;
+    ctx.strokeRect(g.x0, g.y0, g.x1 - g.x0, g.y1 - g.y0);
+    ctx.beginPath(); ctx.arc(g.ax, g.cy, g.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(g.bx, g.cy, g.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (15 * d) + 'px serif';
+    ctx.fillText('A', g.ax - g.r * 0.75, g.cy - g.r * 0.85); ctx.fillText('B', g.bx + g.r * 0.75, g.cy - g.r * 0.85);
+    ctx.fillText('U', g.x0 + 12 * d, g.y0 + 12 * d);
+    // 答え合わせのときだけ、区画に入る結果を見せる
+    if (state.reveal || st.type === 'opt' && false) {
+      const rs = C.regionsOf(q.prm.sp, q.prm.a, q.prm.b);
+      ctx.font = 'bold ' + (12 * d) + 'px sans-serif'; ctx.fillStyle = '#fff';
+      const pos = [[g.ax - g.r * 0.45, g.cy], [(g.ax + g.bx) / 2, g.cy], [g.bx + g.r * 0.45, g.cy], [g.x1 - 28 * d, g.y1 - 12 * d]];
+      rs.forEach((xs, i) => ctx.fillText(xs.join(' ') || '—', pos[i][0], pos[i][1]));
+    }
+  }
+  if (st.fig === 'table') {
+    const g = tableGeo(W, H), T = q.prm.T;
+    const cell = (k, color) => { const r = Math.floor(k / 2), c = k % 2; ctx.fillStyle = color; ctx.fillRect(g.x0 + c * g.cw, g.y0 + r * g.ch, g.cw, g.ch); };
+    sh.set.forEach(k => cell(k, col));
+    blink.forEach(k => cell(k, 'rgba(255,216,74,0.45)'));
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * d;
+    for (let i = 0; i <= 2; i++) {
+      ctx.beginPath(); ctx.moveTo(g.x0, g.y0 + i * g.ch); ctx.lineTo(g.x0 + 2 * g.cw, g.y0 + i * g.ch); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(g.x0 + i * g.cw, g.y0); ctx.lineTo(g.x0 + i * g.cw, g.y0 + 2 * g.ch); ctx.stroke();
+    }
+    ctx.fillStyle = '#ffd84a'; ctx.font = 'bold ' + (12 * d) + 'px sans-serif';
+    T.cols.forEach((c, i) => ctx.fillText(c, g.x0 + (i + 0.5) * g.cw, g.y0 - 14 * d));
+    T.rows.forEach((r, i) => ctx.fillText(r, g.x0 - 34 * d, g.y0 + (i + 0.5) * g.ch));
+    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (16 * d) + 'px sans-serif';
+    for (let k = 0; k < 4; k++) ctx.fillText(state.reveal ? q.prm.cnt[k] + T.unit : '？', g.x0 + (k % 2 + 0.5) * g.cw, g.y0 + (Math.floor(k / 2) + 0.5) * g.ch);
+  }
+  if (st.fig === 'tree') {
+    const g = treeGeo(W, H), m = q.prm;
+    const pct = [m.a, 100 - m.a], dd = [[m.dA, 100 - m.dA], [m.dB, 100 - m.dB]];
+    const leafName = ['A・不良', 'A・良', 'B・不良', 'B・良'];
+    [0, 1, 2, 3].forEach(k => {
+      const on = sh.set.includes(k), bl = blink.includes(k), mid = Math.floor(k / 2);
+      ctx.strokeStyle = on ? (sh.ans ? YEL : BLUE) : bl ? '#ffd84a' : '#fff';
+      ctx.lineWidth = (on || bl ? 5 : 2) * d;
+      ctx.beginPath(); ctx.moveTo(g.rootX, H / 2); ctx.lineTo(g.midX, g.midY[mid]); ctx.lineTo(g.leafX, g.ys[k]); ctx.stroke();
+    });
+    ctx.fillStyle = '#fff'; ctx.font = (11 * d) + 'px sans-serif';
+    ['工場 A', '工場 B'].forEach((t, i) => { ctx.fillText(t, g.midX, g.midY[i] - 12 * d); ctx.fillText(pct[i] + '%', (g.rootX + g.midX) / 2, (H / 2 + g.midY[i]) / 2 - 8 * d); });
+    [0, 1, 2, 3].forEach(k => {
+      const mid = Math.floor(k / 2);
+      ctx.fillText(dd[mid][k % 2] + '%', (g.midX + g.leafX) / 2, (g.midY[mid] + g.ys[k]) / 2 - 8 * d);
+      ctx.textAlign = 'left'; ctx.fillText(leafName[k], g.leafX + 6 * d, g.ys[k]); ctx.textAlign = 'center';
+    });
+  }
+  if (state.phase === 'next' && st.type === 'paint' && !state.tut) {
+    const cap = state.view === 'mine' ? 'じぶんの こたえ' : 'ただしい ず';
+    ctx.font = 'bold ' + (12 * d) + 'px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const w = ctx.measureText(cap).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(4 * d, H - 24 * d, w + 10 * d, 20 * d);
+    ctx.fillStyle = state.view === 'mine' ? '#8fb4ff' : YEL; ctx.fillText(cap, 9 * d, H - 20 * d);
+  }
+}
+// タップした場所 → 区画・マス・葉
+function hitAt(x, y) {
+  const st = step(), W = canvas.width, H = canvas.height;
+  if (st.fig === 'venn') return vennRegion(vennGeo(W, H), x, y);
+  if (st.fig === 'table') {
+    const g = tableGeo(W, H), c = Math.floor((x - g.x0) / g.cw), r = Math.floor((y - g.y0) / g.ch);
+    return c >= 0 && c < 2 && r >= 0 && r < 2 ? r * 2 + c : null;
+  }
+  if (st.fig === 'tree') {
+    const g = treeGeo(W, H); if (x < g.midX) return null;
+    let best = null, bd = H * 0.12;
+    g.ys.forEach((ly, k) => { const dd = Math.abs(y - ly); if (dd < bd) { bd = dd; best = k; } });
+    return best;
+  }
+  return null;
+}
+canvas.addEventListener('click', e => {
+  const st = step();
+  if (state.phase !== 'play' || !st || st.type !== 'paint') return;
+  const r = canvas.getBoundingClientRect();
+  const hit = hitAt((e.clientX - r.left) * canvas.width / r.width, (e.clientY - r.top) * canvas.height / r.height);
+  if (hit === null) return;
+  if (state.tut) { tutTap(hit); return; }
+  state.sel = state.sel.includes(hit) ? state.sel.filter(x => x !== hit) : state.sel.concat(hit);
+  draw(); renderControls();
+});
+
+// ---------- 演出 ----------
+function flashScreen() { const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+function monsterAnim(cls) { monsterEl.classList.remove('hit', 'miss-dmg'); void monsterEl.offsetWidth; monsterEl.classList.add(cls); }
+function showDamage(text, color) {
+  const el = document.createElement('div');
+  el.className = 'dmg-float'; el.textContent = text; el.style.color = color;
+  el.style.textShadow = '2px 2px 0 #000, 0 0 8px ' + color;
+  const r = monsterEl.getBoundingClientRect(), g = gameEl.getBoundingClientRect();
+  el.style.left = (r.left - g.left + r.width / 2 - 16) + 'px'; el.style.top = (r.top - g.top) + 'px';
+  gameEl.appendChild(el); setTimeout(() => el.remove(), 1000);
+}
+
+// ---------- 章えらび ----------
+function showMap() {
+  const cl = loadClear();
+  const party = C.CHAPTERS.slice(0, 5).map(c => cl[c.ch] ? c.hero.sprite : '・').join(' ');
+  $('party').innerHTML = '<div class="party">なかま：' + party + '</div>';
+  const all5 = [1, 2, 3, 4, 5].every(k => cl[k]);
+  const items = C.CHAPTERS.map(c => {
+    if (c.ch === 6 && !all5) return '<button class="chap locked" disabled>🔒 第6章（1〜5章を クリアで ひらく）</button>';
+    if (c.ch === 7 && !cl[6]) return '';
+    return '<button class="chap" data-ch="' + c.ch + '">' + (cl[c.ch] ? '✅ ' : '▶ ') + c.title + '<span class="unit">' + c.unit + '</span></button>';
+  }).join('');
+  $('chapterList').innerHTML = items;
+  $('chapterList').querySelectorAll('.chap[data-ch]').forEach(b => b.addEventListener('click', () => { $('mapScreen').classList.add('hidden'); state.ctx = C.newContext(); startChapter(+b.dataset.ch); }));
+  $('mapScreen').classList.remove('hidden');
+  state.phase = 'idle';
+}
+
+// ---------- 進行 ----------
+function hint() {
+  const st = step();
+  return st.type === 'opt' ? 'えらんで けってい' : (st.fig === 'tree' ? '枝の 先を タップ' : st.fig === 'table' ? 'マスを タップ' : 'ベン図の 区画を タップ') + '（いくつでも）→ けってい';
+}
+function resetInput() { state.sel = []; state.opt = -1; state.reveal = false; state.view = 'ans'; state.mineSel = []; }
+function newProblem() {
+  const slot = state.slots[state.slotIdx];
+  state.problem = C.makeProblem(slot, state.ctx, rng);
+  state.si = 0; resetInput(); state.phase = 'play';
+  renderEnemy(); renderProblem(); renderControls(); renderStatus();
+}
+function startChapter(ch) {
+  state.ch = ch;
+  const c = chap();
+  state.slots = C.makeSlots(ch, rng, state.ctx);
+  state.slotIdx = 0; state.hp = 1; state.lives = MAX_LIVES;
+  monsterEl.classList.remove('dying');
+  newProblem();
+  setMessage(c.title + '「' + c.unit + '」\n' + c.hero.name + '「' + c.say + '」\n' + hint());
+}
+function submit() {
+  const q = p(), st = step();
+  if (state.phase !== 'play' || !q) return;
+  if (state.tut) { tutDecide(); return; }
+  if (!ready()) { setMessage(hint()); return; }
+  const ans = st.type === 'opt' ? { opt: state.opt } : { sel: state.sel.slice() };
+  if (!C.judgeStep(st, ans)) { const types = C.classifyStep(q, state.si, ans); C.record(state.ctx, q, false, types); onWrong(types); return; }
+  if (state.si < q.steps.length - 1) {   // 2段の問題：つぎの段へ
+    state.si += 1; resetInput(); renderProblem(); renderControls();
+    setMessage('せいかい！　つぎは ' + (step().part || 'つぎの だん') + '\n' + hint());
+    return;
+  }
+  onCorrect(C.record(state.ctx, q, true, []));
+}
+function onCorrect(ev) {
+  const c = chap(), boss = state.slotIdx >= c.normal, e = boss ? c.boss : c.enemy;
+  state.phase = 'busy'; state.reveal = true; state.hp -= 1;
+  draw(); renderControls(); renderStatus();
+  flashScreen(); monsterAnim('hit'); showDamage('-1', '#ffff00');
+  const helper = p().mix ? '\n' + helperLine(p().method) : '';
+  const mastered = ev.mastered.map(t => '◎ ' + C.MASTER_TEXT[t] + ' こくふく！').join('\n');
+  setMessage('せいかい！　' + e.name + 'に　ダメージ！' + helper + (mastered ? '\n' + mastered : ''));
+  setTimeout(() => {
+    state.slotIdx += 1;
+    if (state.hp > 0) { newProblem(); setMessage('のこり HP ' + state.hp + '！\n' + hint()); return; }
+    monsterEl.classList.add('dying'); setMessage(e.name + 'を　たおした！'); renderStatus();
+    setTimeout(afterDefeat, 1100);
+  }, 1100);
+}
+function helperLine(method) {
+  const ch = C.METHOD[Object.keys(C.METHOD).find(k => C.METHOD[k][0] === method)][1];
+  const h = C.CHAPTERS[ch - 1].hero;
+  return h.sprite + ' ' + h.name + '「' + method + ' なら まかせて！」';
+}
+function afterDefeat() {
+  const c = chap();
+  monsterEl.classList.remove('dying');
+  if (state.slotIdx >= state.slots.length) { chapterClear(); return; }
+  state.hp = state.slotIdx === c.normal ? c.bossHp : 1;
+  state.lives = MAX_LIVES;
+  newProblem();
+  const e = state.slotIdx >= c.normal ? c.boss : c.enemy;
+  setMessage((state.slotIdx === c.normal ? 'ボスの ' : 'また ') + e.name + 'が　あらわれた！\n' + hint());
+}
+function chapterClear() {
+  const c = chap();
+  saveClear(c.ch);
+  state.phase = 'idle';
+  if (c.ch <= 5) {
+    $('clearHero').textContent = c.hero.sprite;
+    $('clearTitle').textContent = c.hero.name + 'が なかまに なった！';
+    const n = [1, 2, 3, 4, 5].filter(k => loadClear()[k]).length;
+    $('clearText').textContent = n === 5 ? '5人 そろった！ 第6章が ひらいた！' : 'なかま ' + n + '/5';
+  } else if (c.ch === 6) {
+    $('clearHero').textContent = '👑';
+    $('clearTitle').textContent = 'カクリツノマオウを たおした！';
+    $('clearText').textContent = 'GAME CLEAR!　…どこかで 裏ダンジョンの とびらが ひらいた';
+  } else {
+    $('clearHero').textContent = '🌟';
+    $('clearTitle').textContent = 'ナゼナゼを たおした！';
+    $('clearText').textContent = '原因を さかのぼりし者よ、その ちえに えいこう あれ。';
+  }
+  $('clearScreen').classList.remove('hidden');
+}
+function onWrong(types) {
+  const q = p(), st = step();
+  state.lives -= 1; state.phase = 'next'; state.reveal = true; state.view = 'ans';
+  state.mineSel = state.sel.slice();
+  draw(); renderControls(); renderStatus();
+  monsterAnim('miss-dmg'); showDamage('MISS', '#ff4444');
+  setMessage(['ざんねん！　' + C.describe(q, state.si, types), ...(st.type === 'paint' ? ['ただしい ずは こう（きいろ）'] : []), ...q.reason].join('\n'));
+  state.onNext = state.lives <= 0
+    ? () => { state.phase = 'idle'; $('gameOverScreen').classList.remove('hidden'); }
+    : () => { newProblem(); setMessage('もういちど！\n' + hint()); };
+}
+function next() { if (state.phase !== 'next' || !state.onNext) return; const cb = state.onNext; state.onNext = null; cb(); }
+
+// ---------- チュートリアル ----------
+const TUT = [
+  { mode: 'venn', prm: { sp: 'die', a: 'even', b: 'm3', op: 'A∪B' }, msg: '【れんしゅう 1/2】A∪B は「A または B」。\n点滅している 区画を ぜんぶ タップしよう', wrong: 'A か B の どちらかに 入る 区画（点滅している ところ）だよ' },
+  { mode: 'addFormula', prm: { sp: 'die', a: 'even', b: 'm3' }, msg: '【れんしゅう 2/2】排反でない ときは、かさなり P(A∩B) を ひく。\n光っている 式を えらぼう', wrong: 'かさなりを ひいている 式だよ' },
+];
+function tutBuild(t) { return C.build(t.mode, rng, { fixed: t.prm }); }
+function tutDone() { try { return localStorage.getItem('kakuritsu-tut') === '1'; } catch (e) { return false; } }
+let pulseId = null;
+function pulse(id) {
+  pulseId = id;
+  $('decideBtn').classList.toggle('pulse', id === 'decideBtn');
+  optBtns.forEach((b, i) => b.classList.toggle('pulse', id === 'opt' + i));
+  $('btnHint').classList.toggle('hidden', !id); placeBtnHint();
+}
+function placeBtnHint() {
+  if (!pulseId) return;
+  const el = pulseId.startsWith('opt') ? optBtns[+pulseId[3]] : $(pulseId);
+  const b = el.getBoundingClientRect(), g = gameEl.getBoundingClientRect();
+  $('btnHint').style.left = (b.left - g.left + b.width * 0.84) + 'px'; $('btnHint').style.top = (b.top - g.top + 26) + 'px';
+}
+let blinkTimer = null;
+function startBlink() { stopBlink(); state.blinkOn = true; blinkTimer = setInterval(() => { state.blinkOn = !state.blinkOn; draw(); }, 450); }
+function stopBlink() { if (blinkTimer) clearInterval(blinkTimer); blinkTimer = null; state.blinkOn = false; $('tapHint').classList.add('hidden'); }
+function placeTapHint() {
+  if (!state.tut || state.tut.step !== 'tap') return;
+  const rest = step().answer.filter(r => !state.sel.includes(r));
+  if (!rest.length) return;
+  const g = vennGeo(canvas.width, canvas.height);
+  const pos = [[g.ax - g.r * 0.45, g.cy], [(g.ax + g.bx) / 2, g.cy], [g.bx + g.r * 0.45, g.cy], [g.x1 - 30, g.y1 - 20]][rest[0]];
+  const cr = canvas.getBoundingClientRect(), wr = figWrap.getBoundingClientRect();
+  $('tapHint').style.left = (cr.left - wr.left + pos[0] / DPR) + 'px'; $('tapHint').style.top = (cr.top - wr.top + pos[1] / DPR) + 'px';
+}
+function startTutorial() {
+  state.tut = { i: 0, step: 'tap' }; state.ch = 1; state.slotIdx = 0; state.hp = 1; state.lives = MAX_LIVES;
+  $('skipTut').classList.remove('hidden');
+  tutProblem();
+}
+function tutProblem() {
+  const t = TUT[state.tut.i];
+  state.problem = tutBuild(t); state.si = 0; resetInput(); state.phase = 'play';
+  monsterEl.textContent = '🎯'; monsterEl.className = ''; $('monsterName').textContent = 'まと';
+  renderProblem(); renderControls(); renderStatus(); pulse(null);
+  setMessage(t.msg);
+  if (step().type === 'opt') { state.tut.step = 'opt'; pulse('opt' + step().options.findIndex(o => o.correct)); }
+  else { state.tut.step = 'tap'; startBlink(); $('tapHint').classList.remove('hidden'); placeTapHint(); }
+  draw();
+}
+function tutTap(hit) {
+  const t = TUT[state.tut.i];
+  if (state.tut.step !== 'tap') return;
+  if (!step().answer.includes(hit)) { setMessage(t.wrong); return; }
+  if (!state.sel.includes(hit)) state.sel = state.sel.concat(hit);
+  if (step().answer.every(r => state.sel.includes(r))) { stopBlink(); state.tut.step = 'decide'; setMessage('さいごに「けってい」を おそう'); pulse('decideBtn'); }
+  else placeTapHint();
+  draw(); renderControls();
+}
+function tutOpt(i) {
+  const t = TUT[state.tut.i];
+  if (state.tut.step !== 'opt') return;
+  if (!step().options[i].correct) { setMessage(t.wrong); return; }
+  state.opt = i; state.tut.step = 'decide'; renderControls(); setMessage('さいごに「けってい」を おそう'); pulse('decideBtn');
+}
+function tutDecide() {
+  if (state.tut.step !== 'decide') return;
+  const last = state.tut.i === TUT.length - 1;
+  pulse(null); state.reveal = true; state.phase = 'next';
+  renderControls(); draw(); flashScreen(); monsterAnim('hit');
+  setMessage('せいかい！\n' + (last ? 'これで れんしゅうは おしまい' : 'つぎの れんしゅうへ'));
+  state.onNext = last ? () => { state.phase = 'idle'; $('tutDoneScreen').classList.remove('hidden'); } : () => { state.tut.i += 1; tutProblem(); };
+}
+function endTutorial(toMap) {
+  stopBlink(); pulse(null); state.tut = null; $('skipTut').classList.add('hidden');
+  try { localStorage.setItem('kakuritsu-tut', '1'); } catch (e) { /* 保存できなくても遊べる */ }
+  showMap();
+}
+
+// ---------- 操作 ----------
+optBtns.forEach((b, i) => b.addEventListener('click', () => {
+  if (state.phase !== 'play') return;
+  if (state.tut) { tutOpt(i); return; }
+  state.opt = i; renderControls();
+}));
+$('decideBtn').addEventListener('click', submit);
+$('nextBtn').addEventListener('click', next);
+$('mineBtn').addEventListener('click', () => { if (state.phase === 'next') { state.view = 'mine'; renderControls(); draw(); } });
+$('ansBtn').addEventListener('click', () => { if (state.phase === 'next') { state.view = 'ans'; renderControls(); draw(); } });
+$('startBtn').addEventListener('click', () => { $('titleScreen').classList.add('hidden'); if (tutDone()) showMap(); else startTutorial(); });
+$('howBtn').addEventListener('click', () => { $('titleScreen').classList.add('hidden'); startTutorial(); });
+$('skipTut').addEventListener('click', () => { if (state.tut) endTutorial(); });
+$('goBtn').addEventListener('click', () => { $('tutDoneScreen').classList.add('hidden'); endTutorial(); });
+$('clearBtn').addEventListener('click', () => { $('clearScreen').classList.add('hidden'); showMap(); });
+$('retryBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); startChapter(state.ch); });
+$('toMapBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); showMap(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  if (e.repeat) return;
+  const overlayBtn = { titleScreen: 'startBtn', tutDoneScreen: 'goBtn', clearScreen: 'clearBtn', gameOverScreen: 'retryBtn' };
+  for (const id in overlayBtn) if (!$(id).classList.contains('hidden')) { $(overlayBtn[id]).click(); return; }
+  if (!$('mapScreen').classList.contains('hidden')) return;
+  if (state.phase === 'next') next();
+  else if (state.phase === 'play' && e.key === 'Enter') submit();
+});
+new ResizeObserver(resizePlane).observe(figWrap);
+renderStatus();
+})();
+</script>
+</body>
+</html>
