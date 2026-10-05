@@ -706,8 +706,12 @@ const CHAPTERS = [
     enemy: { name: 'ナゼ', sprite: '❓' }, boss: { name: 'ナゼナゼ', sprite: '👁️' }, say: '結果から 原因を さかのぼれ！', bossHp: 4, normal: 3 },
 ];
 // 6章：考え方（どの章の 考え方か）
-const METHOD = { addFormula: ['加法定理', 1], indepFormula: ['独立な 試行（かけざん）', 2], binom: ['反復試行', 3], mult: ['乗法定理', 4], condFormula: ['条件付き確率', 4], expFormula: ['期待値', 5] };
-const METHOD_NAMES = ['加法定理', '独立な 試行（かけざん）', '反復試行', '乗法定理', '条件付き確率', '期待値'];
+const METHOD = { addFormula: ['加法定理', 1], indepFormula: ['独立な試行', 2], binom: ['反復試行', 3], mult: ['乗法定理', 4], condFormula: ['条件付き確率', 4], expFormula: ['期待値', 5] };
+const GOAL = {
+  addFormula: 'A または B が おきる 確率を もとめたい', indepFormula: 'その 確率を もとめたい', binom: 'その 確率を もとめたい',
+  mult: 'その 確率を もとめたい', condFormula: 'その 確率を もとめたい', expFormula: '1回 あたり 平均で 何点 もらえると みこめるか を もとめたい',
+};
+const METHOD_NAMES = ['加法定理', '独立な試行', '反復試行', '乗法定理', '条件付き確率', '期待値'];
 
 function build(mode, rng, opt = {}) {
   const p = GEN[mode](rng, opt.fixed);   // fixed：中身を指定して作る（チュートリアル用）
@@ -718,6 +722,8 @@ function build(mode, rng, opt = {}) {
     const others = shuffle(rng, METHOD_NAMES.filter(m => m !== right && !(mode === 'mult' && m === '条件付き確率') && !(mode === 'condFormula' && m === '乗法定理'))).slice(0, 3);
     const options = shuffle(rng, [right].concat(others).map(m => ({ text: m, correct: m === right, types: m === right ? [] : ['method'] })));
     p.steps = [{ type: 'opt', options, part: 'かんがえかた' }].concat(p.steps);
+    // 1段目でも「何を もとめるか」が わかるように、場面の 最後に 書く（考え方の 名前は 言わない）
+    p.scene += '。' + GOAL[mode];
     p.method = right;
     p.mix = true;
   }
@@ -893,7 +899,7 @@ function renderEnemy() {
 }
 function renderProblem() {
   const q = p(), st = step();
-  $('problemLabel').textContent = q.label + (q.steps.length > 1 ? '　［' + (state.si + 1) + '/' + q.steps.length + (st.part ? '：' + st.part : '') + '］' : '');
+  $('problemLabel').textContent = (st.part === 'かんがえかた' ? '▼ 考え方を えらべ' : q.label) + (q.steps.length > 1 ? '　［' + (state.si + 1) + '/' + q.steps.length + (st.part ? '：' + st.part : '') + '］' : '');
   $('problemExpr').innerHTML = mathHTML(st.part === 'かんがえかた' ? 'つかう 考え方は？' : st.part ? st.part + 'を ぬれ' : q.q);
   $('scene').innerHTML = mathHTML(q.scene.replace(/。/g, '\n').replace(/\n+$/, ''));   // 文ごとに改行
   const fig = st.fig || null;
