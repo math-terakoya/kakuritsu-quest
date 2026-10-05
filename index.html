@@ -1115,7 +1115,8 @@ function submit() {
   if (!ready()) { setMessage(hint()); return; }
   const ans = st.type === 'opt' ? { opt: state.opt } : { sel: state.sel.slice() };
   if (!C.judgeStep(st, ans)) { const types = C.classifyStep(q, state.si, ans); C.record(state.ctx, q, false, types); onWrong(types); return; }
-  if (state.si < q.steps.length - 1) {   // 2段の問題：つぎの段へ
+  if (state.si < q.steps.length - 1) {   // 2段の問題：つぎの段へ（ダメージは最後の段で。ここでは手ごたえの演出だけ）
+    flashScreen(); monsterAnim('hit'); showDamage('○', '#44ff88');
     state.si += 1; resetInput(); renderProblem(); renderControls();
     setMessage('せいかい！　つぎは ' + (step().part || 'つぎの だん') + '\n' + hint());
     return;
