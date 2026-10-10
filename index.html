@@ -1028,11 +1028,12 @@ function bossWarn(final) {
   gameEl.appendChild(el); setTimeout(() => el.remove(), 2000);
 }
 function bigText(text, cls, ms) { const el = document.createElement('div'); el.className = 'level-up ' + cls; el.textContent = text; gameEl.appendChild(el); setTimeout(() => el.remove(), ms); }
+const PUNC = t => t.replace(/。/g, '．').replace(/、/g, '，');   // 問題文は 教科書と おなじ「，」「．」（「。」が 度の「°」に 見えないように）
 function renderProblem() {
   const q = p(), st = step();
   $('problemLabel').textContent = (st.part === 'かんがえかた' ? '▼ 考え方を えらべ' : q.label) + (q.steps.length > 1 ? '　［' + (state.si + 1) + '/' + q.steps.length + (st.part ? '：' + st.part : '') + '］' : '');
-  $('problemExpr').innerHTML = mathHTML(st.part === 'かんがえかた' ? 'つかう 考え方は？' : st.part ? st.part + 'を ぬれ' : q.q);
-  $('scene').innerHTML = mathHTML(q.scene.replace(/。/g, '\n').replace(/\n+$/, ''));   // 文ごとに改行
+  $('problemExpr').innerHTML = mathHTML(st.part === 'かんがえかた' ? 'つかう 考え方は？' : st.part ? st.part + 'を ぬれ' : PUNC(q.q));
+  $('scene').innerHTML = mathHTML(PUNC(q.scene.replace(/。/g, '\n').replace(/\n+$/, '')));   // 文ごとに改行
   const fig = st.fig || null;
   figWrap.classList.toggle('hidden', !fig);
   $('scene').classList.toggle('big', !fig);
