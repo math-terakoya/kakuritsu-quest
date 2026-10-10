@@ -110,6 +110,7 @@ font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer;
 #mapBtn { position: absolute; top: 4px; right: 6px; background: #000; color: #aaa; border: 1px solid #666; font-family: inherit; font-size: 10px; padding: 2px 6px; cursor: pointer; z-index: 3; }
 #mapBtn.hidden { display: none; }
 #problem .label { padding-right: 46px; padding-left: 46px; }
+@media (max-width: 360px) { #mapBtn .mbt { display: none; } #problem .label { padding-right: 18px; padding-left: 18px; } }   /* せまい 画面は「≡」だけ */
 
 #planeWrap { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; }
 #plane {
@@ -366,7 +367,7 @@ letter-spacing: 4px; z-index: 20; animation: lvUp 1.8s forwards; pointer-events:
 
   <div class="rpg-window" id="battle">
     <button id="skipTut" class="hidden">とばす ▶▶</button>
-    <button id="mapBtn" class="hidden">≡ しょう</button>
+    <button id="mapBtn" class="hidden">≡<span class="mbt"> しょう</span></button>
     <div id="enemy"><div id="monster">🫧</div><div id="monsterName">カサナリン</div></div>
     <div id="problem">
       <div class="label" id="problemLabel">&nbsp;</div>
