@@ -1503,7 +1503,7 @@ function next() { if (state.phase !== 'next' || !state.onNext) return; const cb 
 
 // ---------- チュートリアル ----------
 const TUT = [
-  { mode: 'venn', prm: { sp: 'die', a: 'even', b: 'm3', op: 'A∪B' }, msg: '【れんしゅう 1/2】A∪B は「A または B」。\n点滅している 区画を ぜんぶ タップしよう', wrong: 'A か B の どちらかに 入る 区画（点滅している ところ）だよ' },
+  { mode: 'venn', prm: { sp: 'die', a: 'even', b: 'm3', op: 'A∪B' }, msg: '【れんしゅう 1/2】A∪B は「A または B」。\n点滅している 区画を ぜんぶ タップしよう', wrong: 'A と B の 少なくとも 一方に 入る 区画（点滅している ところ）だよ' },
   { mode: 'addFormula', prm: { sp: 'die', a: 'even', b: 'm3' }, msg: '【れんしゅう 2/2】排反でない ときは、かさなり P(A∩B) を ひく。\n光っている 式を えらぼう', wrong: 'かさなりを ひいている 式だよ' },
 ];
 function tutBuild(t) { return C.build(t.mode, rng, { fixed: t.prm }); }
