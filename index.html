@@ -304,6 +304,15 @@ letter-spacing: 4px; z-index: 20; animation: lvUp 1.8s forwards; pointer-events:
 #game { overflow-y: auto; overflow-x: hidden; }
 #planeWrap { min-height: 100px; }
 #message { flex-shrink: 1; min-height: 48px; }   /* 縦が 足りない ときは まず メッセージを 小さく（中で スクロール）して ボタンを 画面に のこす */
+/* 正解の 大きい まる（ほめる ことばつき）：2026-10-30 「正解かどうかが わかりにくい」→ 正解は 大きく ほめる */
+.maru { position: absolute; left: 50%; top: 46%; width: min(64vw, 290px); aspect-ratio: 1; transform: translate(-50%, -50%); z-index: 45; pointer-events: none;
+  border: 16px solid #ff4646; border-radius: 50%; box-shadow: 0 0 26px rgba(255,70,70,0.75), inset 0 0 26px rgba(255,70,70,0.5);
+  display: flex; align-items: center; justify-content: center; animation: maru 1.15s ease-out forwards; background: radial-gradient(circle, rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.35) 100%); }
+.maru span { color: #fff; font-size: 30px; font-weight: bold; white-space: nowrap; letter-spacing: 2px; text-shadow: 3px 3px 0 #a00000, 0 0 14px #ff5050; }
+.maru.gold { border-color: #ffd84a; box-shadow: 0 0 30px rgba(255,216,74,0.85), inset 0 0 26px rgba(255,216,74,0.55); }
+.maru.gold span { text-shadow: 3px 3px 0 #8a5a00, 0 0 14px #ffd84a; }
+@keyframes maru { 0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; } 22% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+  36% { transform: translate(-50%, -50%) scale(1); } 78% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.04); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -1383,12 +1392,18 @@ function submit() {
   const ans = st.type === 'opt' ? { opt: state.opt } : { sel: state.sel.slice() };
   if (!C.judgeStep(st, ans)) { const types = C.classifyStep(q, state.si, ans); C.record(state.ctx, q, false, types); onWrong(types); return; }
   if (state.si < q.steps.length - 1) {   // 2段の問題：つぎの段へ（ダメージは最後の段で。ここでは手ごたえの演出だけ）
-    flashScreen(); monsterAnim('hit'); showDamage('○', '#44ff88');
+    flashScreen(); monsterAnim('hit'); showDamage('○', '#44ff88'); showMaru('① せいかい！');
     state.si += 1; resetInput(); renderProblem(); renderControls();
     setMessage('せいかい！　つぎは ' + (step().part || 'つぎの だん') + '\n' + hint());
     return;
   }
   onCorrect(C.record(state.ctx, q, true, []));
+}
+const HOME = ['すごい！', 'その とおり！', 'ナイス！', 'さすが！', 'みきわめた！', 'かんぺき！', 'いいね！'];
+function showMaru(text, gold) {   // 正解の 大きい まる
+  const el = document.createElement('div'); el.className = 'maru' + (gold ? ' gold' : '');
+  const s = document.createElement('span'); s.textContent = text || HOME[Math.floor(Math.random() * HOME.length)]; el.appendChild(s);
+  gameEl.appendChild(el); setTimeout(() => el.remove(), 1150);
 }
 function onCorrect(ev) {
   const c = chap(), boss = isBoss(), e = boss ? c.boss : c.enemy, q = p();
@@ -1406,6 +1421,7 @@ function onCorrect(ev) {
   draw(); renderControls(); renderStatus();
   flashScreen(); if (hit.crit || hit.special) setTimeout(flashScreen, 180);
   monsterAnim('hit'); showDamage('-' + hit.d, hit.special ? '#7fe8ff' : hit.crit ? '#ff9900' : '#ffff00');
+  showMaru(hit.special ? '必殺技！' : hit.crit ? 'かいしん！' : state.combo >= 3 ? state.combo + ' れんぞく！' : '', hit.crit || hit.special);   // 正解は 大きい まるで ほめる
   const lines = ['せいかい！　' + e.name + 'に　' + hit.d + ' の ダメージ！'];
   if (hit.special) lines.unshift(hero.sprite + ' ' + hero.name + 'の 必殺技『' + C.SKILL[h] + '』！');
   else if (hit.crit) lines.unshift('かいしんの いちげき！');
@@ -1567,7 +1583,7 @@ function tutDecide() {
   if (state.tut.step !== 'decide') return;
   const last = state.tut.i === TUT.length - 1;
   pulse(null); state.reveal = true; state.phase = 'next';
-  renderControls(); draw(); flashScreen(); monsterAnim('hit');
+  renderControls(); draw(); flashScreen(); monsterAnim('hit'); showMaru();
   setMessage('せいかい！\n' + (last ? 'これで れんしゅうは おしまい' : 'つぎの れんしゅうへ'));
   state.onNext = last ? () => { state.phase = 'idle'; $('tutDoneScreen').classList.remove('hidden'); } : () => { state.tut.i += 1; tutProblem(); };
 }
