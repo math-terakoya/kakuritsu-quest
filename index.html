@@ -774,7 +774,7 @@ const CHAPTERS = [
     enemy: { name: 'カサナリン', sprite: '🫧' }, boss: { name: 'ベンノカベ', sprite: '🧱' }, say: 'かさなりを みきわめよ！', bossHp: 2, normal: 3 },
   { ch: 2, title: '第2章 ひとり旅の魔法使い', unit: '独立な 試行', hero: { name: 'ヒトリ', sprite: '🧙' },
     modes: ['indep', 'indep', 'indepFormula', 'indepFormula'],
-    enemy: { name: 'ムスビメ', sprite: '🪢' }, boss: { name: 'ツナガリグモ', sprite: '🕸️' }, say: 'たがいに えいきょう しないなら かけざん！', bossHp: 2, normal: 3 },
+    enemy: { name: 'ムスビメ', sprite: '🪢' }, boss: { name: 'ツナガリグモ', sprite: '🕸️' }, say: 'たがいに えいきょう しないなら かけ算！', bossHp: 2, normal: 3 },
   { ch: 3, title: '第3章 くりかえしの踊り子', unit: '反復試行', hero: { name: 'メグル', sprite: '💃' },
     modes: ['binom', 'binom', 'binomK', 'complement'],
     enemy: { name: 'ナンカイ', sprite: '🌀' }, boss: { name: 'ナンドメ', sprite: '🐌' }, say: 'どの 回に おきるか えらぶ → ₙCᵣ！', bossHp: 2, normal: 3 },
@@ -835,7 +835,7 @@ function classifyStep(p, si, ans) {
   return ['scatter'];
 }
 const TYPE_TEXT = {
-  waseki: '∪（または）と ∩（かつ）／たしざんと かけざんを とりちがえた', yoji: '余事象の つかいかたが ちがう', hiki: 'かさなり P(A∩B) を ひいていない',
+  waseki: '∪（または）と ∩（かつ）／たし算と かけ算を とりちがえた', yoji: '余事象の つかいかたが ちがう', hiki: 'かさなり P(A∩B) を ひいていない',
   haihan: '排反（同時に おこらない）かどうかの みきわめが ちがう', dokuritsu: '独立（えいきょう しない）かどうかの みきわめが ちがう',
   ncr: 'ₙCᵣ（どの 回に おきるか）が ちがう／わすれた', pq: 'おきる 確率と おきない 確率の 回数が はんたい', last: '「◯回目に ちょうど」の 最後の 1回を 固定していない',
   bunbo: '分母が ちがう', jouken: '条件（「〜とき」の 〜）を とりちがえた', nibon: '2本目は 1本へった あとの 確率に なる',
@@ -930,7 +930,7 @@ const HOME = { venn: 1, vennRev: 1, exclusive: 1, complement: 1, addFormula: 1, 
   condVenn: 4, condTable: 4, condFormula: 4, mult: 4, distTable: 5, expFormula: 5, bayesTree: 4, bayesFormula: 4 };
 const heroOf = mode => HOME[mode];
 const SKILL_MAX = 10;
-const SKILL = { 1: 'ベンの たて', 2: 'かけざんの まほう', 3: 'ₙCᵣの まい', 4: 'ぶんぼの よげん', 5: 'みこみの そろばん' };
+const SKILL = { 1: 'ベンの たて', 2: 'かけ算の まほう', 3: 'ₙCᵣの まい', 4: 'ぶんぼの よげん', 5: 'みこみの そろばん' };
 // ---------- 図鑑（問題の 型）。1：見つけた（せいかい した）、2：こくふく（まちがえた あと 2回 つづけて せいかい） ----------
 const ZUKAN = [
   ['venn', 1, 'ベン図を ぬる', '∪ は または、∩ は かつ、 ̄ は でない'],
