@@ -319,6 +319,19 @@ letter-spacing: 4px; z-index: 20; animation: lvUp 1.8s forwards; pointer-events:
 .moji-btn.on { border-color: #ffff00; color: #ffff00; }
 #game.moji-big #controls .key.opt { font-size: 22px; }   /* 大 は 選択肢を さらに 大きく（11-20 先生：選択肢の 文字）。長い ときは fitOpts が 小さく する */
 #game.moji-big #controls.three .key.opt { font-size: 26px; }
+/* 問題の 文字を 大きく（11-25 先生）。図が 小さく なりすぎる ときは 文字を もどす */
+#problem .label { font-size: 14px; margin-bottom: 5px; }
+#game.moji-on #problem .label { font-size: 16px; }
+#problem .expr { font-size: 22px; }
+#game.moji-on #problem .expr { font-size: 26px; }
+#scene { font-size: 15px; }
+#scene.big { font-size: 18px; }
+@media (max-width: 360px) { #problem .expr { font-size: 20px; } #scene { font-size: 14px; } #scene.big { font-size: 17px; } }
+#game.moji-on #scene { font-size: 17px; }
+#game.moji-on #scene.big { font-size: 21px; }
+#battle { grid-template-columns: max-content minmax(0, 1fr); gap: 8px; }   /* 左の 列は「やくそく」ボタンの 幅まで 広げる */
+#enemy { min-width: 64px; }
+#skipTut:not(.hidden) ~ #problem .label { padding-right: 74px; text-align: left; }   /* れんしゅうの「とばす」ボタンに 見出しが 重ならない ように */
 .fr > .de:has(sup) { padding-top: 0.42em; }   /* 分母に 指数が ある ときは 横線から はなす（11-20 先生） */
 </style>
 </head>
@@ -1156,6 +1169,7 @@ function fitRuns(root) {   // 図の 幅が 決まって から 測る（まだ 
         });
         return pieces.filter(p => p.length); };
       let sep = '\u200b', ps = cut(/(?<=[，．])/);   // まず「，」「．」の あと、なければ ＝・不等号の 前
+      if (ps.length < 2) { sep = ' '; ps = cut(/[ \u00a0](?=\()/); }   // かっこの 前（(0° ≦ θ ≦ 180°) を 途中で 折らない）
       if (ps.length < 2) { sep = ' '; ps = cut(/[ \u00a0](?=[＝＜＞≦≧][ \u00a0])/); }
       if (ps.length < 2) { sep = '\u200b'; ps = cut(/(?<=\))(?=\()/); }   // それでも なければ かっこの 積の あいだ
       if (ps.length > 1) {
@@ -1192,8 +1206,22 @@ function setMessage(text) { $('msgText').innerHTML = mathHTML(text); $('message'
 // ---------- 図（ベン図・表・樹形図） ----------
 let DPR = 1;
 const ASPECT = 0.6;
+// 図が 小さく なりすぎる ときだけ、場面の 文と 問題の 文字を 1px ずつ もどす（場面 13px・問題 18px まで）。選択肢の 問題は 図が 小さめでも よい（11-25 先生）
+function fitScene() {
+  const sc = $('scene'), ex = $('problemExpr');
+  sc.style.fontSize = ''; ex.style.fontSize = ''; $('problemLabel').style.cssText = '';
+  if (figWrap.classList.contains('hidden') || !figWrap.offsetParent) return;
+  const st = p() ? step() : null, need = st && st.type === 'opt' ? 130 : 200;
+  let fs = parseFloat(getComputedStyle(sc).fontSize), fe = parseFloat(getComputedStyle(ex).fontSize);
+  while (figWrap.clientHeight < need && (fs > 13 || fe > 18)) {
+    if (fs > 13) { fs -= 1; sc.style.fontSize = fs + 'px'; }
+    if (fe > 18) { fe -= 1; ex.style.fontSize = fe + 'px'; }
+  }
+  if (figWrap.clientHeight < need) $('problemLabel').style.cssText = 'font-size: 11px; margin-bottom: 3px;';   // それでも 足りない ときは 見出しも 小さく
+}
 function resizePlane() {
   fitOpts();
+  fitScene();
   if (figWrap.classList.contains('hidden')) return;
   const wMax = figWrap.clientWidth - 12, hMax = figWrap.clientHeight - 6;
   const W = Math.max(140, Math.floor(Math.min(wMax, hMax / ASPECT)));
@@ -1682,6 +1710,7 @@ renderStatus();
       g.style.width = Math.min(480, W / z) + 'px'; g.style.height = (H / z) + 'px';
     }
     g.classList.toggle('moji-big', big && W >= 600);   // 選択肢を さらに 大きく するのは 広い 画面だけ（スマホは 下が はみ出す）
+    g.classList.toggle('moji-on', big && (W >= 600 || H >= 640));   // 問題の 文字を さらに 大きく（たての みじかい スマホは しない）
     document.querySelectorAll('.moji-btn').forEach(b => b.classList.toggle('on', (b.dataset.v === 'big') === big));
     window.dispatchEvent(new Event('resize'));
     busy = false;
